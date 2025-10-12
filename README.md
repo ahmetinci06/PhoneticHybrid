@@ -187,7 +187,7 @@ Open browser: **http://localhost:3000**
 | POST | `/upload` | Upload audio + analyze |
 | GET | `/health` | System status |
 
-### Phoneme API (New!)
+### Phoneme API
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/phoneme/generate` | Generate IPA phonemes for a word |
@@ -196,6 +196,19 @@ Open browser: **http://localhost:3000**
 | GET | `/phoneme/health` | Check phoneme service status |
 
 **See:** `PHONEME_FEATURE.md` for complete documentation
+
+### Pronunciation Analysis API (New!)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/analyze/audio` | Analyze pronunciation quality of uploaded .wav |
+
+**Features:**
+- Automatic phoneme target generation
+- Acoustic feature extraction (MFCC, pitch, formants)
+- Per-phoneme scoring
+- Overall pronunciation grade (A-F)
+
+**See:** `PRONUNCIATION_ANALYSIS_GUIDE.md` for complete documentation
 
 ## 🎨 Features
 

@@ -11,9 +11,18 @@ import librosa
 import numpy as np
 from pathlib import Path
 import shutil
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Import phoneme service router
 from phoneme_service import router as phoneme_router
+
+# Import inference module
+from inference import analyze_pronunciation as analyze_audio_phonemes
+import requests
 
 app = FastAPI(title="Turkish Pronunciation Analysis API")
 
@@ -238,6 +247,95 @@ def extract_features(y: np.ndarray, sr: int) -> np.ndarray:
     ])
     
     return features
+
+
+@app.post("/analyze/audio")
+async def analyze_audio_endpoint(
+    file: UploadFile = File(...),
+    word: str = Form(...)
+):
+    """
+    Analyze pronunciation quality of uploaded audio file.
+    Compares recorded audio with target phoneme sequence.
+    
+    Args:
+        file: .wav audio file (UploadFile)
+        word: Target word being pronounced
+        
+    Returns:
+        JSON with phoneme analysis results
+        
+    Example:
+        curl -X POST http://localhost:8000/analyze/audio \
+          -F "file=@pencere.wav" \
+          -F "word=pencere"
+    """
+    try:
+        # Validate file format
+        if not file.filename.endswith('.wav'):
+            raise HTTPException(
+                status_code=400,
+                detail="Only .wav files are supported"
+            )
+        
+        # Save uploaded file temporarily
+        temp_dir = Path("temp_audio")
+        temp_dir.mkdir(exist_ok=True)
+        
+        temp_file_path = temp_dir / f"{uuid.uuid4()}.wav"
+        
+        with open(temp_file_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+        
+        # Generate target phonemes using phoneme service
+        try:
+            response = requests.post(
+                "http://localhost:8000/phoneme/generate",
+                json={"word": word, "include_stress": True}
+            )
+            
+            if response.status_code == 200:
+                phoneme_data = response.json()
+                target_phonemes = phoneme_data['phonemes']
+            else:
+                # Fallback if phoneme service unavailable
+                target_phonemes = ""
+                
+        except Exception as e:
+            logger.warning(f"Phoneme service unavailable: {e}")
+            target_phonemes = ""
+        
+        # Analyze pronunciation
+        if target_phonemes:
+            result = analyze_audio_phonemes(
+                audio_path=str(temp_file_path),
+                word=word,
+                target_phonemes=target_phonemes
+            )
+        else:
+            # Fallback to basic acoustic analysis only
+            raise HTTPException(
+                status_code=503,
+                detail="Phoneme service unavailable. Cannot generate target phonemes."
+            )
+        
+        # Clean up temporary file
+        try:
+            temp_file_path.unlink()
+        except:
+            pass
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Audio analysis failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Audio analysis failed: {str(e)}"
+        )
 
 
 @app.get("/health")
