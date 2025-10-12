@@ -19,13 +19,12 @@ htmlcov/
 *.pth
 *.ckpt
 
-# Data files
-data/
+# Data files - ignore participant data but keep directory structure
+data/*
 !data/.gitkeep
 
-# Models directory
-models/*.pt
-models/*.pkl
+# Models directory - ignore model files but keep directory structure
+models/*
 !models/.gitkeep
 
 # Node.js

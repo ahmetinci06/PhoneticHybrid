@@ -1,0 +1,6 @@
+# This directory stores participant data
+# Format: participant_{uuid}/
+#   ├── info.json
+#   ├── survey.json
+#   └── kelimeler/
+#       └── *.wav
