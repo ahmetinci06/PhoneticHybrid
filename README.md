@@ -178,6 +178,7 @@ Open browser: **http://localhost:3000**
 
 ## 🔧 API Endpoints
 
+### Core Endpoints
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/` | Health check |
@@ -186,11 +187,22 @@ Open browser: **http://localhost:3000**
 | POST | `/upload` | Upload audio + analyze |
 | GET | `/health` | System status |
 
+### Phoneme API (New!)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/phoneme/generate` | Generate IPA phonemes for a word |
+| POST | `/phoneme/analyze` | Detailed phoneme analysis |
+| POST | `/phoneme/batch` | Process multiple words |
+| GET | `/phoneme/health` | Check phoneme service status |
+
+**See:** `PHONEME_FEATURE.md` for complete documentation
+
 ## 🎨 Features
 
 ✅ **Modern UI** - Material UI components with beautiful design  
 ✅ **Audio Recording** - Browser MediaRecorder API  
 ✅ **Real-time Feedback** - Instant pronunciation analysis  
+✅ **Phoneme Visualization** - IPA phoneme generation with eSpeak-NG  
 ✅ **Data Privacy** - KVKK compliant, encrypted storage  
 ✅ **GPU Training** - Fast model training on Colab  
 ✅ **Scalable** - Modular architecture, easy to extend  

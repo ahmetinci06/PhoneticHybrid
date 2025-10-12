@@ -12,6 +12,9 @@ import numpy as np
 from pathlib import Path
 import shutil
 
+# Import phoneme service router
+from phoneme_service import router as phoneme_router
+
 app = FastAPI(title="Turkish Pronunciation Analysis API")
 
 # CORS configuration for React frontend
@@ -22,6 +25,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include phoneme service router
+app.include_router(phoneme_router)
 
 # Paths
 BASE_DIR = Path(__file__).parent.parent

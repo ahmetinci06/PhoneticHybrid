@@ -42,6 +42,11 @@ Before starting training, ensure:
 ☐ Labels Prepared
   ⚠️ CRITICAL: You must provide pronunciation quality labels!
   
+☐ Phoneme Generation (Optional)
+  - Use the phoneme API to generate reference phoneme sequences
+  - Endpoint: POST /phoneme/generate or /phoneme/batch
+  - Useful for phoneme-level alignment and distance calculations
+  
   Options for labeling:
   a) Expert Annotations: Phoneticians rate each recording
   b) Native Speaker Ratings: 1-5 Likert scale
@@ -342,6 +347,71 @@ Production Metrics (after deployment):
 
 
 ───────────────────────────────────────────────────────────────────
+🔤 USING PHONEME API IN TRAINING
+───────────────────────────────────────────────────────────────────
+
+The PhoneticHybrid backend now includes a phoneme generation API
+that can be used during the training phase for improved labeling.
+
+API Endpoints:
+--------------
+1. /phoneme/generate - Generate phonemes for single word
+2. /phoneme/analyze  - Detailed analysis with syllable count
+3. /phoneme/batch    - Process multiple words at once
+4. /phoneme/health   - Check service availability
+
+Usage in Colab Notebook:
+------------------------
+```python
+import requests
+
+# Generate phonemes for a word
+response = requests.post(
+    'http://localhost:8000/phoneme/generate',
+    json={'word': 'pencere', 'include_stress': True}
+)
+data = response.json()
+print(f"Word: {data['word']}")
+print(f"Phonemes: {data['phonemes']}")
+print(f"Count: {data['phoneme_count']}")
+
+# Batch processing for all words
+words = ['araba', 'bahçe', 'çocuk', 'diş', 'elma']
+response = requests.post(
+    'http://localhost:8000/phoneme/batch',
+    json=words
+)
+phoneme_data = response.json()
+```
+
+Integration with Training Pipeline:
+------------------------------------
+Use phoneme sequences to:
+1. Generate reference phoneme targets for each word
+2. Calculate phoneme edit distance as a feature
+3. Align recorded audio phonemes with reference
+4. Create phoneme-level pronunciation accuracy scores
+
+Example Feature:
+```python
+def calculate_phoneme_distance(word, audio_path):
+    # Get reference phonemes
+    ref_phonemes = get_phonemes_from_api(word)
+    
+    # Extract phonemes from audio (using forced alignment)
+    audio_phonemes = extract_phonemes_from_audio(audio_path)
+    
+    # Calculate edit distance
+    distance = levenshtein_distance(ref_phonemes, audio_phonemes)
+    
+    return distance
+```
+
+This phoneme-based approach can significantly improve
+pronunciation quality assessment accuracy.
+
+
+───────────────────────────────────────────────────────────────────
 🎓 ADVANCED: FEATURE ENGINEERING
 ───────────────────────────────────────────────────────────────────
 
@@ -353,7 +423,7 @@ Temporal Features:
 - Tempo and rhythm features
 
 Linguistic Features:
-- Phoneme-level alignment
+- Phoneme-level alignment (use /phoneme API)
 - IPA transcription matching
 - Edit distance to reference
 
