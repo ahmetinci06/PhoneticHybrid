@@ -1,0 +1,182 @@
+═══════════════════════════════════════════════════════════════════
+    TRAINING ENVIRONMENT SETUP - Google Colab GPU
+═══════════════════════════════════════════════════════════════════
+
+This document explains how to set up the training environment for
+the Turkish Pronunciation Analysis ML model.
+
+───────────────────────────────────────────────────────────────────
+📋 Prerequisites
+───────────────────────────────────────────────────────────────────
+
+1. Google Account with Google Drive access
+2. Collected audio data in /data directory
+3. Basic Python and ML knowledge
+
+───────────────────────────────────────────────────────────────────
+🚀 Setup Steps
+───────────────────────────────────────────────────────────────────
+
+STEP 1: Prepare Data Directory
+-------------------------------
+1. Upload your project to Google Drive:
+   - Upload the entire /data folder to Drive
+   - Create path: MyDrive/phoneizer/data/
+
+2. Expected structure in Drive:
+   phoneizer/
+   ├── data/
+   │   ├── participant_xxx/
+   │   │   ├── info.json
+   │   │   ├── survey.json
+   │   │   └── kelimeler/
+   │   │       ├── 00_araba.wav
+   │   │       ├── 01_bahçe.wav
+   │   │       └── ...
+   │   └── participant_yyy/
+   │       └── ...
+   └── models/  (will be created by notebook)
+
+
+STEP 2: Open Google Colab
+--------------------------
+1. Go to: https://colab.research.google.com
+2. Click "File" → "Upload notebook"
+3. Upload: ml_colab/training_notebook.ipynb
+
+
+STEP 3: Enable GPU
+------------------
+1. In Colab: Runtime → Change runtime type
+2. Hardware accelerator: GPU
+3. GPU type: T4 (free tier) or better
+4. Click "Save"
+
+
+STEP 4: Install Dependencies
+-----------------------------
+The notebook will automatically install:
+- PyTorch 2.1.2
+- librosa 0.10.1
+- praat-parselmouth 0.4.3
+- phonemizer 3.2.1
+- scikit-learn
+- numpy, pandas, matplotlib
+
+System dependencies (espeak-ng) are pre-installed in Colab.
+
+
+STEP 5: Mount Google Drive
+---------------------------
+Run the mount cell in the notebook:
+```python
+from google.colab import drive
+drive.mount('/content/drive')
+```
+
+Grant permissions when prompted.
+
+
+STEP 6: Run Training
+---------------------
+Execute cells sequentially:
+1. Setup & Dependencies
+2. Mount Drive & Load Data
+3. Feature Extraction
+4. Label Generation (replace with real labels!)
+5. Data Preprocessing
+6. Model Architecture
+7. Training (will take ~15-30 minutes)
+8. Evaluation
+9. Save Model
+
+
+STEP 7: Download Trained Model
+-------------------------------
+After training completes:
+1. Navigate to Drive: MyDrive/phoneizer/models/
+2. Download: trained_model.pt
+3. Copy to local: backend/../models/trained_model.pt
+
+
+───────────────────────────────────────────────────────────────────
+⚙️ Configuration Options
+───────────────────────────────────────────────────────────────────
+
+Model Hyperparameters (in notebook):
+- hidden_sizes: [128, 64, 32]
+- dropout: 0.3
+- learning_rate: 0.001
+- batch_size: 32
+- num_epochs: 50
+
+Feature Extraction:
+- sample_rate: 16000 Hz
+- n_mfcc: 13
+- formants: F1, F2, F3
+- pitch_range: 75-600 Hz
+
+
+───────────────────────────────────────────────────────────────────
+🔧 Troubleshooting
+───────────────────────────────────────────────────────────────────
+
+Problem: "No module named 'parselmouth'"
+Solution: Restart runtime and re-run installation cells
+
+Problem: "CUDA out of memory"
+Solution: Reduce batch_size from 32 to 16 or 8
+
+Problem: "Drive not mounted"
+Solution: Re-run mount cell and grant permissions
+
+Problem: "Audio files not found"
+Solution: Check Drive path matches: /content/drive/MyDrive/phoneizer/data/
+
+Problem: Training is very slow
+Solution: Verify GPU is enabled (Runtime → Change runtime type)
+
+
+───────────────────────────────────────────────────────────────────
+📊 Expected Results
+───────────────────────────────────────────────────────────────────
+
+Training metrics:
+- Train Loss: Should decrease to ~0.3-0.5
+- Test Loss: Should be similar to train loss
+- Accuracy: Target 70-85% (depends on label quality)
+
+Training time:
+- With GPU: ~15-30 minutes for 50 epochs
+- Without GPU: ~1-2 hours (not recommended)
+
+
+───────────────────────────────────────────────────────────────────
+⚠️ Important Notes
+───────────────────────────────────────────────────────────────────
+
+1. LABEL QUALITY: The notebook includes synthetic label generation
+   for demonstration. Replace with real expert annotations!
+
+2. DATA PRIVACY: Ensure participant data is anonymized before
+   uploading to cloud services.
+
+3. MODEL SIZE: Final model is ~500KB-2MB depending on architecture.
+
+4. COLAB LIMITS: Free tier has session limits (~12 hours). Save
+   progress regularly.
+
+5. REPRODUCIBILITY: Random seeds are set for reproducibility, but
+   GPU operations may have slight variations.
+
+
+───────────────────────────────────────────────────────────────────
+📚 Additional Resources
+───────────────────────────────────────────────────────────────────
+
+- Google Colab Docs: https://colab.research.google.com/notebooks/
+- Librosa Docs: https://librosa.org/doc/latest/
+- Praat-Parselmouth: https://parselmouth.readthedocs.io/
+- PyTorch Tutorials: https://pytorch.org/tutorials/
+
+═══════════════════════════════════════════════════════════════════

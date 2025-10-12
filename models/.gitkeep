@@ -1,0 +1,4 @@
+# This directory stores trained ML models
+# After training in Colab, place:
+#   - trained_model.pt
+#   - scaler.pkl (if applicable)

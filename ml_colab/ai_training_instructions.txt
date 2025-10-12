@@ -1,0 +1,389 @@
+═══════════════════════════════════════════════════════════════════
+    AI MODEL TRAINING INSTRUCTIONS
+    Turkish Pronunciation Analysis System
+═══════════════════════════════════════════════════════════════════
+
+This document provides step-by-step instructions for training the
+pronunciation quality assessment model.
+
+───────────────────────────────────────────────────────────────────
+🎯 OVERVIEW
+───────────────────────────────────────────────────────────────────
+
+Purpose: Train a deep learning model to assess Turkish pronunciation
+         quality based on acoustic features.
+
+Architecture: Feed-forward neural network with:
+              - Input: 35-dimensional feature vectors
+              - Hidden layers: [128, 64, 32] neurons
+              - Output: Binary classification (good/needs improvement)
+
+Training Platform: Google Colab with GPU acceleration
+
+Expected Duration: ~20-30 minutes
+
+
+───────────────────────────────────────────────────────────────────
+📋 PRE-TRAINING CHECKLIST
+───────────────────────────────────────────────────────────────────
+
+Before starting training, ensure:
+
+☐ Data Collection Complete
+  - Minimum 50 participants recommended
+  - Each participant recorded 30 words
+  - Total: 1500+ audio samples
+
+☐ Data Quality Verified
+  - Audio files are valid .wav format
+  - Sample rate: 16kHz (will be resampled if different)
+  - No silent or corrupted recordings
+
+☐ Labels Prepared
+  ⚠️ CRITICAL: You must provide pronunciation quality labels!
+  
+  Options for labeling:
+  a) Expert Annotations: Phoneticians rate each recording
+  b) Native Speaker Ratings: 1-5 Likert scale
+  c) Phonetic Distance: Compare to reference recordings
+  d) Automated IPA Transcription: Use phonemizer + DTW
+  
+  The notebook includes SYNTHETIC labels as placeholder.
+  Replace the generate_synthetic_labels() function with real data!
+
+☐ Google Drive Setup
+  - Data uploaded to Drive
+  - Path: MyDrive/phoneizer/data/
+  - Sufficient storage space (recommend 5GB+)
+
+☐ Colab Access
+  - GPU runtime enabled
+  - Drive mounting permissions granted
+
+
+───────────────────────────────────────────────────────────────────
+🚂 TRAINING WORKFLOW
+───────────────────────────────────────────────────────────────────
+
+PHASE 1: Environment Setup (5 minutes)
+---------------------------------------
+1. Open training_notebook.ipynb in Google Colab
+2. Enable GPU: Runtime → Change runtime type → GPU
+3. Run setup cells to install dependencies
+4. Mount Google Drive when prompted
+
+Expected output:
+✓ PyTorch installed with CUDA support
+✓ Drive mounted at /content/drive
+✓ Using device: cuda
+
+
+PHASE 2: Data Loading (2-5 minutes)
+------------------------------------
+1. Execute data loading cells
+2. Notebook will scan all participant directories
+3. Load audio files and metadata
+
+Expected output:
+Loaded XXX audio samples from YY participants
+
+If count is too low:
+- Check Drive path is correct
+- Verify folder structure matches expected format
+
+
+PHASE 3: Feature Extraction (10-20 minutes)
+--------------------------------------------
+⏱️ This is the longest phase!
+
+For each audio file, extracts:
+- 13 MFCCs (mean + std) = 26 features
+- Spectral features (centroid, rolloff, bandwidth) = 3
+- Zero crossing rate = 1
+- RMS energy = 1
+- Formants (F1, F2, F3) = 3
+- F0 statistics (mean, std) = 2
+- Duration = 1
+  
+Total: 37 acoustic features
+
+Progress bar will show completion status.
+
+Expected output:
+Feature extraction complete. XXX samples remaining.
+
+If errors occur:
+- Check audio file integrity
+- Some files may fail (acceptable if <5%)
+- Failed files are automatically dropped
+
+
+PHASE 4: Label Assignment
+--------------------------
+⚠️ REPLACE SYNTHETIC LABELS WITH REAL DATA
+
+The notebook includes:
+```python
+def generate_synthetic_labels(features):
+    quality_score = np.random.uniform(0.3, 1.0)
+    return quality_score
+```
+
+Replace this with your actual labeling logic!
+
+Example with manual annotations:
+```python
+# Load annotations CSV
+annotations = pd.read_csv('annotations.csv')
+labels_dict = dict(zip(annotations['audio_path'], 
+                       annotations['quality_score']))
+
+df['quality_score'] = df['audio_path'].map(labels_dict)
+```
+
+
+PHASE 5: Training (15-25 minutes)
+----------------------------------
+Model will train for 50 epochs.
+
+Monitor:
+- Train Loss: Should decrease steadily
+- Test Loss: Should track train loss
+- Accuracy: Should increase to 70-85%
+
+Good training signs:
+✓ Losses decrease smoothly
+✓ Test loss follows train loss (no overfitting)
+✓ Accuracy improves over time
+
+Warning signs:
+⚠️ Train loss much lower than test loss → Overfitting
+   Solution: Increase dropout, reduce model size
+   
+⚠️ Loss plateaus early → Learning rate too high/low
+   Solution: Adjust learning rate (try 0.0001 or 0.01)
+   
+⚠️ Accuracy stuck at 50% → Model not learning
+   Solution: Check labels, increase model capacity
+
+Best model is automatically saved when test loss improves.
+
+
+PHASE 6: Evaluation
+--------------------
+Review training curves and final metrics.
+
+Expected accuracy range:
+- 70-80%: Good, ready for production
+- 80-90%: Excellent
+- <70%: May need more data or better labels
+- >95%: Suspicious, check for data leakage
+
+
+PHASE 7: Model Export
+----------------------
+1. Model saved to: MyDrive/phoneizer/models/trained_model.pt
+2. Scaler saved to: MyDrive/phoneizer/models/scaler.pkl
+
+File sizes:
+- trained_model.pt: ~500KB - 2MB
+- scaler.pkl: <10KB
+
+Download both files to your local machine.
+
+
+───────────────────────────────────────────────────────────────────
+💾 POST-TRAINING DEPLOYMENT
+───────────────────────────────────────────────────────────────────
+
+STEP 1: Copy Model to Backend
+------------------------------
+Copy downloaded files to:
+  backend/../models/trained_model.pt
+  backend/../models/scaler.pkl
+
+
+STEP 2: Verify Backend Integration
+-----------------------------------
+Start backend server:
+  cd backend
+  python main.py
+
+Check logs for:
+  ✓ Model loaded successfully
+
+If you see:
+  ⚠ Model not found
+  → Check file path is correct
+
+
+STEP 3: Test API Endpoint
+--------------------------
+Upload a test audio file through the frontend.
+Backend should return:
+{
+  "word": "test",
+  "score": 0.75,
+  "confidence": 0.85,
+  "feedback": "İyi! Küçük iyileştirmeler yapabilirsiniz."
+}
+
+
+───────────────────────────────────────────────────────────────────
+🔄 RETRAINING WORKFLOW
+───────────────────────────────────────────────────────────────────
+
+When to retrain:
+- New participant data collected (every 50-100 samples)
+- Model accuracy degrades
+- Feedback from users indicates poor predictions
+- Adding new words to vocabulary
+
+Retraining process:
+1. Collect new data through web interface
+2. Upload updated /data folder to Drive
+3. Re-run notebook from PHASE 2 onwards
+4. Compare new model metrics to old model
+5. Deploy if metrics improve
+
+
+───────────────────────────────────────────────────────────────────
+📊 HYPERPARAMETER TUNING GUIDE
+───────────────────────────────────────────────────────────────────
+
+If model performance is suboptimal, try adjusting:
+
+Architecture:
+  hidden_sizes = [256, 128, 64]  # More capacity
+  hidden_sizes = [64, 32]        # Less capacity (prevent overfitting)
+
+Regularization:
+  dropout = 0.5      # More regularization
+  dropout = 0.1      # Less regularization
+
+Learning Rate:
+  lr = 0.0001       # Slower, more stable
+  lr = 0.01         # Faster, may be unstable
+
+Training:
+  batch_size = 16   # Smaller batches, noisier gradients
+  batch_size = 64   # Larger batches, smoother gradients
+  
+  num_epochs = 100  # More training time
+
+Always compare validation metrics between runs!
+
+
+───────────────────────────────────────────────────────────────────
+⚠️ COMMON ISSUES & SOLUTIONS
+───────────────────────────────────────────────────────────────────
+
+Issue: "CUDA out of memory"
+Solution:
+  - Reduce batch_size to 16 or 8
+  - Restart Colab runtime
+  - Use smaller model architecture
+
+Issue: "Permission denied" when mounting Drive
+Solution:
+  - Re-run mount cell
+  - Grant all permissions in popup
+  - Check Google account is logged in
+
+Issue: Training is extremely slow
+Solution:
+  - Verify GPU is enabled (not CPU)
+  - Check Runtime → Change runtime type → GPU
+  - Reduce dataset size for testing
+
+Issue: Model accuracy is 50% (random guessing)
+Solution:
+  - Check label quality
+  - Verify label distribution (not all 0s or 1s)
+  - Increase model capacity
+  - Train for more epochs
+
+Issue: Perfect accuracy (100%)
+Solution:
+  - Data leakage! Check train/test split
+  - Verify labels are not derived from features
+  - Ensure no duplicate samples
+
+Issue: Model file not loading in backend
+Solution:
+  - Check PyTorch versions match (2.1.2)
+  - Use torch.load() with map_location='cpu'
+  - Verify file downloaded completely (check size)
+
+
+───────────────────────────────────────────────────────────────────
+📈 MONITORING & LOGGING
+───────────────────────────────────────────────────────────────────
+
+Track these metrics across training runs:
+
+Training Metrics:
+- Final train loss
+- Final test loss  
+- Best test accuracy
+- Training time
+
+Model Metadata:
+- Date trained
+- Number of samples
+- Participant count
+- Feature dimensions
+- Hyperparameters used
+
+Production Metrics (after deployment):
+- Inference time per request
+- User feedback on predictions
+- API error rate
+
+
+───────────────────────────────────────────────────────────────────
+🎓 ADVANCED: FEATURE ENGINEERING
+───────────────────────────────────────────────────────────────────
+
+To improve model performance, consider adding:
+
+Temporal Features:
+- MFCC deltas (first derivative)
+- MFCC delta-deltas (second derivative)
+- Tempo and rhythm features
+
+Linguistic Features:
+- Phoneme-level alignment
+- IPA transcription matching
+- Edit distance to reference
+
+Prosodic Features:
+- Intonation contours
+- Stress patterns
+- Speech rate
+
+Implementation:
+Modify extract_acoustic_features() function in notebook.
+
+
+───────────────────────────────────────────────────────────────────
+✅ TRAINING COMPLETION CHECKLIST
+───────────────────────────────────────────────────────────────────
+
+Before deploying, verify:
+
+☐ Model trained successfully
+☐ Test accuracy ≥ 70%
+☐ No overfitting (train/test loss similar)
+☐ Model files downloaded from Drive
+☐ Files copied to backend/models/
+☐ Backend loads model without errors
+☐ Test API endpoint returns predictions
+☐ Predictions are reasonable (not random)
+☐ Training notebook saved for future reference
+☐ Training metrics documented
+
+
+═══════════════════════════════════════════════════════════════════
+END OF TRAINING INSTRUCTIONS
+═══════════════════════════════════════════════════════════════════

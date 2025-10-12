@@ -1,0 +1,18 @@
+# Core API dependencies
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+pydantic==2.5.3
+
+# ML dependencies (install separately if issues occur)
+# For Python 3.13, some packages may need manual installation
+torch>=2.1.0
+numpy>=1.26.0
+scipy>=1.11.0
+librosa>=0.10.0
+soundfile>=0.12.0
+audioread>=3.0.0
+
+# Phonetic analysis (may require Python 3.11 or earlier)
+praat-parselmouth>=0.4.0
+phonemizer>=3.2.0
