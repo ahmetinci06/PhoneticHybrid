@@ -6,9 +6,10 @@ import OrthodonticSurvey from './components/OrthodonticSurvey'
 import PronunciationTest from './components/PronunciationTest'
 import FinishScreen from './components/FinishScreen'
 import PhonemePreview from './components/PhonemePreview'
+import ReviewPage from './pages/ReviewPage'
 
 type Step = 'welcome' | 'consent' | 'survey' | 'test' | 'finish'
-type Mode = 'main' | 'phoneme'
+type Mode = 'main' | 'phoneme' | 'review'
 
 function App() {
   const [mode, setMode] = useState<Mode>('main')
@@ -55,6 +56,12 @@ function App() {
             >
               Fonem Önizleyici
             </Button>
+            <Button
+              variant={mode === 'review' ? 'contained' : 'outlined'}
+              onClick={() => setMode('review')}
+            >
+              📋 Manuel İnceleme
+            </Button>
           </ButtonGroup>
         </Box>
       )}
@@ -68,6 +75,18 @@ function App() {
             </Button>
           </Box>
           <PhonemePreview />
+        </>
+      )}
+
+      {/* Review Mode */}
+      {mode === 'review' && (
+        <>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+            <Button variant="outlined" onClick={() => setMode('main')}>
+              ← Ana Sayfaya Dön
+            </Button>
+          </Box>
+          <ReviewPage />
         </>
       )}
 

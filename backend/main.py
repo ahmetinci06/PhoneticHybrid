@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, List
 import json
@@ -20,6 +21,9 @@ logger = logging.getLogger(__name__)
 # Import phoneme service router
 from phoneme_service import router as phoneme_router
 
+# Import review API router
+from review_api import router as review_router
+
 # Import inference module
 from inference import analyze_pronunciation as analyze_audio_phonemes
 import requests
@@ -37,6 +41,9 @@ app.add_middleware(
 
 # Include phoneme service router
 app.include_router(phoneme_router)
+
+# Include review API router
+app.include_router(review_router)
 
 # Paths
 BASE_DIR = Path(__file__).parent.parent
@@ -336,6 +343,30 @@ async def analyze_audio_endpoint(
             status_code=500,
             detail=f"Audio analysis failed: {str(e)}"
         )
+
+
+@app.get("/audio/{participant_id}/{filename}")
+async def serve_audio(participant_id: str, filename: str):
+    """
+    Serve audio files for review interface.
+    
+    Args:
+        participant_id: Participant ID
+        filename: Audio filename
+    
+    Returns:
+        Audio file
+    """
+    audio_path = DATA_DIR / participant_id / "kelimeler" / filename
+    
+    if not audio_path.exists():
+        raise HTTPException(status_code=404, detail="Audio file not found")
+    
+    return FileResponse(
+        path=str(audio_path),
+        media_type="audio/wav",
+        filename=filename
+    )
 
 
 @app.get("/health")

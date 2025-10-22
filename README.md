@@ -197,7 +197,7 @@ Open browser: **http://localhost:3000**
 
 **See:** `PHONEME_FEATURE.md` for complete documentation
 
-### Pronunciation Analysis API (New!)
+### Pronunciation Analysis API
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/analyze/audio` | Analyze pronunciation quality of uploaded .wav |
@@ -205,10 +205,29 @@ Open browser: **http://localhost:3000**
 **Features:**
 - Automatic phoneme target generation
 - Acoustic feature extraction (MFCC, pitch, formants)
-- Per-phoneme scoring
+- **ML-based scoring** (0-100) or heuristic fallback
+- Per-phoneme detailed feedback
 - Overall pronunciation grade (A-F)
+- Confidence intervals (with ML)
 
 **See:** `PRONUNCIATION_ANALYSIS_GUIDE.md` for complete documentation
+
+### ML Model Training (New!)
+Train a neural network to replace heuristic scoring with learned predictions.
+
+**Quick Start:**
+```bash
+cd backend
+python train_ml_model.py
+```
+
+**Features:**
+- 57 acoustic features extracted
+- Neural network (PyTorch)
+- Training on Google Colab (GPU)
+- Automatic deployment
+
+**See:** `ML_TRAINING_GUIDE.md` for complete ML training documentation
 
 ## 🎨 Features
 

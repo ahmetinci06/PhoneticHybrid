@@ -1,0 +1,268 @@
+═══════════════════════════════════════════════════════════════════
+    ML MODEL TRAINING - QUICK START GUIDE
+═══════════════════════════════════════════════════════════════════
+
+🎯 GOAL: Train neural network to score pronunciation (0-100)
+
+═══════════════════════════════════════════════════════════════════
+📋 PREREQUISITES
+═══════════════════════════════════════════════════════════════════
+
+✓ Python 3.10+ installed
+✓ Audio recordings collected (data/participant_*/kelimeler/*.wav)
+✓ Google account (for Colab)
+✓ 300+ labeled audio samples (recommended)
+
+═══════════════════════════════════════════════════════════════════
+🚀 5-STEP PROCESS
+═══════════════════════════════════════════════════════════════════
+
+STEP 1: Prepare Data
+────────────────────
+cd backend
+python train_ml_model.py
+
+Choose:
+  1. Mock labels (testing) → Random scores
+  2. Real labels (production) → Use existing *_result.json files
+
+Output: data/training_data.csv
+
+STEP 2: Open Google Colab
+──────────────────────────
+1. Go to: https://colab.research.google.com/
+2. Upload: ml_colab/pronunciation_scoring_training.ipynb
+3. Enable GPU: Runtime → Change runtime type → GPU
+
+STEP 3: Train Model
+────────────────────
+1. Upload training_data.csv to Colab
+2. Run all cells (Shift+Enter through each)
+3. Wait 5-10 minutes for training
+4. Check test MAE (should be < 10, ideally < 5)
+
+STEP 4: Download Model
+───────────────────────
+At end of notebook, download 3 files:
+  - pronunciation_scorer.pth
+  - model_info.json
+  - scaler_params.json
+
+STEP 5: Deploy
+───────────────
+mkdir backend/models
+mv downloaded_files backend/models/
+python main.py
+
+✅ ML model now active!
+
+═══════════════════════════════════════════════════════════════════
+📁 FILE STRUCTURE
+═══════════════════════════════════════════════════════════════════
+
+backend/
+  prepare_training_data.py    → Extract features from audio
+  train_ml_model.py           → Guided workflow script
+  ml_scorer.py                → ML model loader/predictor
+  inference.py                → Updated with ML integration
+  models/                     → Model files (create this)
+    pronunciation_scorer.pth  → Neural network weights
+    model_info.json           → Architecture config
+    scaler_params.json        → Feature normalization
+
+ml_colab/
+  pronunciation_scoring_training.ipynb  → Training notebook
+
+data/
+  training_data.csv           → Prepared dataset
+  participant_*/
+    kelimeler/
+      *.wav                   → Audio files
+      *_result.json          → Score labels
+
+═══════════════════════════════════════════════════════════════════
+📊 LABEL FORMAT
+═══════════════════════════════════════════════════════════════════
+
+File: 01_araba_result.json
+
+{
+  "word": "araba",
+  "score": 85.5,
+  "labeled": true,
+  "evaluator": "expert_name",
+  "notes": "Good pronunciation, slight accent"
+}
+
+Score Guidelines:
+  90-100: Excellent (native-like)
+  80-89:  Good (clear, understandable)
+  70-79:  Fair (some errors)
+  60-69:  Poor (many errors)
+  0-59:   Very poor (unintelligible)
+
+═══════════════════════════════════════════════════════════════════
+🧪 TESTING
+═══════════════════════════════════════════════════════════════════
+
+# Test ML model loads
+python -c "from ml_scorer import get_ml_scorer; print(get_ml_scorer().is_available())"
+
+# Test full pipeline
+cd backend
+python test_analysis.py ../data/participant_XXX/kelimeler/01_araba.wav araba
+
+Expected output:
+  Overall Score: 85.3
+  Scoring Method: ml_model  ← Should say "ml_model"
+
+# Start backend
+python main.py
+
+Expected in logs:
+  ✓ ML model loaded successfully from models
+  Input features: 57
+  Test MAE: 4.2
+
+═══════════════════════════════════════════════════════════════════
+🔧 FEATURES EXTRACTED (57 total)
+═══════════════════════════════════════════════════════════════════
+
+MFCCs:       39 features (13 × 3: mean, std, delta)
+Pitch:       3 features (mean, std, range)
+Formants:    5 features (F1, F2, F3 mean/std)
+Energy:      3 features (RMS mean, std, max)
+Spectral:    5 features (centroid, rolloff, bandwidth, flatness, ZCR)
+Temporal:    1 feature (tempo)
+Harmonic:    1 feature (harmonic ratio)
+
+═══════════════════════════════════════════════════════════════════
+🧠 MODEL ARCHITECTURE
+═══════════════════════════════════════════════════════════════════
+
+Input: 57 features
+  ↓
+Dense(128) → BatchNorm → ReLU → Dropout(0.3)
+  ↓
+Dense(64) → BatchNorm → ReLU → Dropout(0.3)
+  ↓
+Dense(32) → BatchNorm → ReLU → Dropout(0.3)
+  ↓
+Dense(1) → Sigmoid
+  ↓
+Output: Score [0, 1] → scaled to [0, 100]
+
+Total parameters: ~12,000
+
+═══════════════════════════════════════════════════════════════════
+📈 PERFORMANCE TARGETS
+═══════════════════════════════════════════════════════════════════
+
+Metric          Target      Good        Excellent
+MAE (0-100)     < 10        < 7         < 5
+RMSE            < 12        < 9         < 6
+R²              > 0.70      > 0.80      > 0.90
+
+Training Time:
+  100 samples:  1-2 min
+  500 samples:  3-5 min
+  1000 samples: 5-10 min
+
+═══════════════════════════════════════════════════════════════════
+🐛 TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════════
+
+Error: "No labeled data found"
+→ Create *_result.json files for each .wav file
+→ Or use mock labels for testing
+
+Error: "Model not loaded"
+→ Check files exist: ls backend/models/
+→ Should have 3 files: .pth, model_info.json, scaler_params.json
+
+Error: "scoring_method: heuristic" (want ml_model)
+→ Model not loading correctly
+→ Check backend logs for errors
+→ Verify PyTorch installed: pip install torch
+
+Error: "High MAE (>10)"
+→ Need more training data (aim for 500+)
+→ Check label quality (consistent scores?)
+→ Increase training epochs or tune hyperparameters
+
+═══════════════════════════════════════════════════════════════════
+📚 DOCUMENTATION
+═══════════════════════════════════════════════════════════════════
+
+ML_TRAINING_GUIDE.md           → Complete training guide
+ML_QUICK_START.txt            → This file
+PRONUNCIATION_ANALYSIS_GUIDE.md → API usage
+README.md                      → Project overview
+
+═══════════════════════════════════════════════════════════════════
+🔄 RETRAINING
+═══════════════════════════════════════════════════════════════════
+
+When to retrain:
+  - Collected more labeled data
+  - Model performance degrades
+  - Want to improve accuracy
+
+How to retrain:
+  1. Add new labels to data/
+  2. python prepare_training_data.py
+  3. Upload new CSV to Colab
+  4. Run training notebook
+  5. Download and deploy new model
+
+═══════════════════════════════════════════════════════════════════
+✅ VERIFICATION CHECKLIST
+═══════════════════════════════════════════════════════════════════
+
+Data Preparation:
+  [ ] Audio files exist
+  [ ] Labels created (300+ recommended)
+  [ ] training_data.csv generated
+  [ ] CSV has 57+ feature columns
+
+Training:
+  [ ] Colab notebook uploaded
+  [ ] GPU enabled
+  [ ] Training completed
+  [ ] Test MAE < 10
+  [ ] Downloaded 3 model files
+
+Deployment:
+  [ ] Files copied to backend/models/
+  [ ] Backend starts without errors
+  [ ] ML model loads (check logs)
+  [ ] Test prediction works
+  [ ] Response shows "ml_model" scoring
+
+═══════════════════════════════════════════════════════════════════
+💡 TIPS
+═══════════════════════════════════════════════════════════════════
+
+✓ More data = better model (aim for 500+ samples)
+✓ Label quality > quantity
+✓ Use consistent evaluation criteria
+✓ Test with diverse speakers
+✓ Monitor for overfitting (train vs val MAE)
+✓ Retrain periodically as you collect more data
+
+═══════════════════════════════════════════════════════════════════
+🎯 NEXT STEPS AFTER DEPLOYMENT
+═══════════════════════════════════════════════════════════════════
+
+1. Test with real audio samples
+2. Compare ML vs heuristic scores
+3. Collect user feedback
+4. Label more data
+5. Retrain to improve accuracy
+6. Monitor model performance in production
+
+═══════════════════════════════════════════════════════════════════
+✨ STATUS: READY TO TRAIN
+═══════════════════════════════════════════════════════════════════
+
+Run: python train_ml_model.py

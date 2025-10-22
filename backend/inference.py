@@ -269,7 +269,7 @@ class PronunciationAnalyzer:
         return float(overall)
 
 
-def analyze_pronunciation(audio_path: str, word: str, target_phonemes: str) -> Dict:
+def analyze_pronunciation(audio_path: str, word: str, target_phonemes: str, use_ml: bool = True) -> Dict:
     """
     Main function to analyze pronunciation quality of recorded audio.
     
@@ -277,6 +277,7 @@ def analyze_pronunciation(audio_path: str, word: str, target_phonemes: str) -> D
         audio_path: Path to recorded .wav file
         word: Target word being pronounced
         target_phonemes: Expected phoneme sequence (IPA, space-separated)
+        use_ml: Whether to use ML model for scoring (if available)
         
     Returns:
         Dictionary with analysis results:
@@ -286,13 +287,14 @@ def analyze_pronunciation(audio_path: str, word: str, target_phonemes: str) -> D
             "features": dict,
             "scores": dict,
             "overall": float,
-            "grade": str
+            "grade": str,
+            "scoring_method": str
         }
         
     Example:
         >>> result = analyze_pronunciation("pencere.wav", "pencere", "p e n d͡ʒ e ɾ e")
         >>> print(result['overall'])
-        0.84
+        84.5
     """
     logger.info(f"Analyzing pronunciation: word='{word}', audio='{audio_path}'")
     
@@ -302,11 +304,37 @@ def analyze_pronunciation(audio_path: str, word: str, target_phonemes: str) -> D
     # Extract acoustic features
     features = analyzer.extract_acoustic_features(audio_path)
     
-    # Compare with target phonemes
-    phoneme_scores = analyzer.compare_phonemes(target_phonemes, features)
+    # Try ML scoring first if enabled
+    scoring_method = "heuristic"
+    overall_score = 0.0
     
-    # Calculate overall score
-    overall_score = analyzer.calculate_overall_score(phoneme_scores)
+    if use_ml:
+        try:
+            from ml_scorer import get_ml_scorer
+            ml_scorer = get_ml_scorer()
+            
+            if ml_scorer and ml_scorer.is_available():
+                # Use ML model for overall score (0-100)
+                overall_score = ml_scorer.predict_score(features) / 100.0  # Normalize to 0-1
+                scoring_method = "ml_model"
+                logger.info(f"ML prediction: {overall_score*100:.1f}/100")
+            else:
+                # Fallback to heuristic
+                phoneme_scores = analyzer.compare_phonemes(target_phonemes, features)
+                overall_score = analyzer.calculate_overall_score(phoneme_scores)
+                logger.info("ML model not available, using heuristic scoring")
+        except Exception as e:
+            logger.warning(f"ML scoring failed: {e}, falling back to heuristic")
+            phoneme_scores = analyzer.compare_phonemes(target_phonemes, features)
+            overall_score = analyzer.calculate_overall_score(phoneme_scores)
+    else:
+        # Use heuristic scoring
+        phoneme_scores = analyzer.compare_phonemes(target_phonemes, features)
+        overall_score = analyzer.calculate_overall_score(phoneme_scores)
+    
+    # If we used ML, still get per-phoneme scores for detailed feedback
+    if scoring_method == "ml_model":
+        phoneme_scores = analyzer.compare_phonemes(target_phonemes, features)
     
     # Assign letter grade
     if overall_score >= 0.9:
@@ -331,10 +359,11 @@ def analyze_pronunciation(audio_path: str, word: str, target_phonemes: str) -> D
         "scores": phoneme_scores,
         "overall": round(overall_score, 3),
         "grade": grade,
-        "phoneme_count": len(phoneme_scores)
+        "phoneme_count": len(phoneme_scores),
+        "scoring_method": scoring_method
     }
     
-    logger.info(f"Analysis complete: overall={overall_score:.3f}, grade={grade}")
+    logger.info(f"Analysis complete: overall={overall_score:.3f}, grade={grade}, method={scoring_method}")
     
     return result
 

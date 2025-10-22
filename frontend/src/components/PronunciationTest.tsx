@@ -20,12 +20,14 @@ interface PronunciationTestProps {
 }
 
 const turkishWords = [
-  'araba', 'bahçe', 'çocuk', 'diş', 'elma',
-  'futbol', 'güneş', 'havuç', 'ışık', 'jimnastik',
-  'karpuz', 'limon', 'masa', 'nane', 'okul',
-  'para', 'radyo', 'sandalye', 'şapka', 'tiyatro',
-  'üzüm', 'vişne', 'yarış', 'zaman', 'gözlük',
-  'kahve', 'defter', 'müzik', 'pencere', 'çanta',
+  'estetik', 'teşhis', 'maloklüzyon', 'braket', 'çapraşıklık',
+  'temporomandibular', 'gömük diş', 'asimetri', 'aparey', 'şeffaf braket',
+  'florür', 'sefalometri', 'sefalometri', 'ortognatik', 'kapanış',
+  'fonksiyonel', 'diastema', 'distalizasyon', 'profil', 'frenoktomi',
+  'oklüzyon', 'mandibula', 'maksilla', 'overjet', 'pekiştirme',
+  'iskeletsel', 'ortodonti', 'röntgen', 'genişletme', 'çene travması',
+  'kondil', 'dişlenme', 'ankiloz', 'mini vida', 'diş teli', 'zigoma',
+  'splint', 'retainer', 'şeffaf plak', 'konjenital eksiklik', 'süpernümere',
 ]
 
 export default function PronunciationTest({
