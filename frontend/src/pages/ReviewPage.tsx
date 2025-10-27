@@ -227,11 +227,16 @@ const ReviewPage: React.FC = () => {
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       <Typography variant="h3" gutterBottom>
-        📋 Pronunciation Review & Labeling
+        📋 Pronunciation Review & Data Management
       </Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
-        Listen to participant recordings and provide quality scores for ML training.
+        Review participant recordings, listen to pronunciations, and optionally add manual quality assessments.
+        Recordings are automatically analyzed using Azure Speech Services.
       </Typography>
+      <Alert severity="info" sx={{ mb: 3 }}>
+        <strong>Azure Analysis Active:</strong> All recordings are automatically analyzed using Azure Speech Services + Phoneme Analysis.
+        Manual labeling is optional and can be used for quality assurance or research purposes.
+      </Alert>
 
       {/* Overall Stats */}
       {stats && (
@@ -248,15 +253,15 @@ const ReviewPage: React.FC = () => {
               </Grid>
               <Grid item xs={12} md={3}>
                 <Typography variant="h4">{stats.labeled_recordings}</Typography>
-                <Typography variant="body2">Labeled</Typography>
+                <Typography variant="body2">Manually Reviewed</Typography>
               </Grid>
               <Grid item xs={12} md={3}>
                 <Typography variant="h4">{stats.unlabeled_recordings}</Typography>
-                <Typography variant="body2">Unlabeled</Typography>
+                <Typography variant="body2">Awaiting Manual Review</Typography>
               </Grid>
               <Grid item xs={12}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Typography variant="body2">Progress:</Typography>
+                  <Typography variant="body2">Manual Review Progress:</Typography>
                   <Box sx={{ flexGrow: 1 }}>
                     <LinearProgress 
                       variant="determinate" 

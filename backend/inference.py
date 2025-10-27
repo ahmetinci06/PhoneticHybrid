@@ -273,15 +273,17 @@ class PronunciationAnalyzer:
         return float(overall)
 
 
-def analyze_pronunciation(audio_path: str, word: str, target_phonemes: str, use_ml: bool = True) -> Dict:
+def analyze_pronunciation(audio_path: str, word: str, target_phonemes: str) -> Dict:
     """
-    Main function to analyze pronunciation quality of recorded audio.
+    DEPRECATED: Use analyze_pronunciation_azure() instead for production.
+    
+    Legacy function for heuristic-based pronunciation analysis.
+    Kept for backward compatibility and phoneme extraction testing.
     
     Args:
         audio_path: Path to recorded .wav file
         word: Target word being pronounced
         target_phonemes: Expected phoneme sequence (IPA, space-separated)
-        use_ml: Whether to use ML model for scoring (if available)
         
     Returns:
         Dictionary with analysis results:
@@ -308,17 +310,11 @@ def analyze_pronunciation(audio_path: str, word: str, target_phonemes: str, use_
     # Extract acoustic features
     features = analyzer.extract_acoustic_features(audio_path)
     
-    # Use heuristic scoring (ML scoring deprecated - use Azure instead)
-    # For ML-based analysis, use the new analyze_pronunciation_azure() function
-    scoring_method = "heuristic"
+    # Use heuristic scoring (deprecated - use Azure API for production)
+    logger.info("Using legacy heuristic scoring. Consider using analyze_pronunciation_azure() for production.")
+    scoring_method = "heuristic_legacy"
     phoneme_scores = analyzer.compare_phonemes(target_phonemes, features)
     overall_score = analyzer.calculate_overall_score(phoneme_scores)
-    
-    if use_ml:
-        logger.warning(
-            "ML scoring is deprecated. Use analyze_pronunciation_azure() for "
-            "production-ready analysis with Azure Speech Services."
-        )
     
     # Assign letter grade
     if overall_score >= 0.9:
