@@ -6,12 +6,21 @@ Extracts features from recorded audio and creates labeled dataset.
 import json
 import librosa
 import numpy as np
-import parselmouth
-from parselmouth.praat import call
 from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 import logging
+
+# Try to import parselmouth (optional - for formant extraction)
+try:
+    import parselmouth
+    from parselmouth.praat import call
+    PARSELMOUTH_AVAILABLE = True
+except ImportError:
+    PARSELMOUTH_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO)
+    logger.warning("parselmouth not available - formant features will be skipped")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -56,19 +65,24 @@ def extract_features_from_audio(audio_path: str, sample_rate: int = 16000) -> di
         pitch_std = np.std(f0_clean) if len(f0_clean) > 0 else 0
         pitch_range = np.ptp(f0_clean) if len(f0_clean) > 0 else 0
         
-        # 3. Formants via Praat
-        try:
-            sound = parselmouth.Sound(audio_path)
-            formant = call(sound, "To Formant (burg)", 0.0, 5, 5500, 0.025, 50)
-            
-            f1_mean = call(formant, "Get mean", 1, 0, 0, 'Hertz')
-            f2_mean = call(formant, "Get mean", 2, 0, 0, 'Hertz')
-            f3_mean = call(formant, "Get mean", 3, 0, 0, 'Hertz')
-            
-            f1_std = call(formant, "Get standard deviation", 1, 0, 0, 'Hertz')
-            f2_std = call(formant, "Get standard deviation", 2, 0, 0, 'Hertz')
-        except Exception as e:
-            logger.warning(f"Formant extraction failed for {audio_path}: {e}")
+        # 3. Formants via Praat (optional - requires parselmouth)
+        if PARSELMOUTH_AVAILABLE:
+            try:
+                sound = parselmouth.Sound(audio_path)
+                formant = call(sound, "To Formant (burg)", 0.0, 5, 5500, 0.025, 50)
+                
+                f1_mean = call(formant, "Get mean", 1, 0, 0, 'Hertz')
+                f2_mean = call(formant, "Get mean", 2, 0, 0, 'Hertz')
+                f3_mean = call(formant, "Get mean", 3, 0, 0, 'Hertz')
+                
+                f1_std = call(formant, "Get standard deviation", 1, 0, 0, 'Hertz')
+                f2_std = call(formant, "Get standard deviation", 2, 0, 0, 'Hertz')
+            except Exception as e:
+                logger.warning(f"Formant extraction failed for {audio_path}: {e}")
+                f1_mean = f2_mean = f3_mean = 0
+                f1_std = f2_std = 0
+        else:
+            # Use zeros if parselmouth not available
             f1_mean = f2_mean = f3_mean = 0
             f1_std = f2_std = 0
         
@@ -135,7 +149,10 @@ def extract_features_from_audio(audio_path: str, sample_rate: int = 16000) -> di
         return features
         
     except Exception as e:
-        logger.error(f"Feature extraction failed for {audio_path}: {e}")
+        import traceback
+        logger.error(f"Feature extraction failed for {audio_path}:")
+        logger.error(f"Error: {str(e)}")
+        logger.error(traceback.format_exc())
         return None
 
 

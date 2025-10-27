@@ -1,40 +1,35 @@
 # PhoneticHybrid 🎙️
 
-A research-grade hybrid (Google Colab + Local) system for Turkish pronunciation analysis using deep learning.
+A production-ready Turkish pronunciation analysis platform using **Azure Speech Services** + **Phonemizer** for academic phoneme-level pronunciation assessment.
 
 ## 🎯 Overview
 
 PhoneticHybrid is a full-stack web platform where participants:
-1. Record 30 Turkish words
-2. Their audio is analyzed using ML
-3. Receive pronunciation accuracy feedback
+1. Record Turkish words
+2. Audio is analyzed using Azure Cognitive Services Speech-to-Text
+3. Receive detailed phoneme-level pronunciation feedback
+4. Get actionable insights based on acoustic features
 
-**Perfect for:** Linguistic research, speech therapy, language learning applications
+**Perfect for:** Linguistic research, speech therapy, language learning applications, pronunciation assessment
 
 ## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    SYSTEM ARCHITECTURE                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  ┌──────────────┐      ┌──────────────┐      ┌───────────┐ │
-│  │   Frontend   │─────▶│   Backend    │─────▶│  Models   │ │
-│  │ React + MUI  │◀─────│   FastAPI    │◀─────│  PyTorch  │ │
-│  └──────────────┘      └──────────────┘      └───────────┘ │
-│        ▲                      ▲                      ▲       │
-│        │                      │                      │       │
-│        │                      └──────────────────────┘       │
-│        │                   Inference (Local)                 │
-│        │                                                      │
-│        └───────────────┐                                     │
-│                        │                                     │
-│                ┌───────▼────────┐                            │
-│                │  Google Colab  │                            │
-│                │  GPU Training  │                            │
-│                └────────────────┘                            │
-│                                                               │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│              NEW AZURE-BASED ARCHITECTURE                     │
+├──────────────────────────────────────────────────────────────┤
+│                                                                │
+│  ┌──────────────┐      ┌──────────────┐      ┌────────────┐ │
+│  │   Frontend   │─────▶│   Backend    │─────▶│   Azure    │ │
+│  │ React + MUI  │◀─────│   FastAPI    │◀─────│  Speech AI │ │
+│  └──────────────┘      └──────────────┘      └────────────┘ │
+│                               │                                │
+│                               ├─────▶ Phonemizer (eSpeak NG)  │
+│                               ├─────▶ Acoustic Analysis       │
+│                               │       (librosa, Praat)        │
+│                               └─────▶ Phoneme Alignment       │
+│                                                                │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ### Tech Stack
@@ -47,14 +42,17 @@ PhoneticHybrid is a full-stack web platform where participants:
 
 **Backend:**
 - FastAPI (Python 3.10+)
-- PyTorch 2.1.2
+- Azure Cognitive Services Speech SDK
+- Phonemizer (eSpeak NG backend)
 - librosa (audio processing)
 - praat-parselmouth (phonetic analysis)
+- scipy (phoneme alignment)
 
-**ML Training:**
-- Google Colab (GPU)
-- PyTorch neural networks
-- Feature extraction: MFCCs, formants, F0, spectral features
+**Analysis Pipeline:**
+- Azure Speech-to-Text (tr-TR)
+- Ground-truth phoneme generation (Phonemizer)
+- Acoustic feature extraction (MFCCs, formants, F0)
+- Phoneme-level alignment and scoring
 
 ## 📁 Project Structure
 
@@ -120,14 +118,32 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 3. Setup Frontend
+### 3. Configure Azure Speech Services
+
+1. Create an Azure account: https://portal.azure.com
+2. Create a **Speech** resource
+3. Copy your **Key** and **Region**
+4. Create `.env` file in `/backend`:
+
+```bash
+cp .env.example .env
+```
+
+5. Edit `.env` and add your credentials:
+
+```
+AZURE_SPEECH_KEY=your_actual_key_here
+AZURE_REGION=your_region_here
+```
+
+### 4. Setup Frontend
 
 ```bash
 cd frontend
 npm install
 ```
 
-### 4. Run Development Servers
+### 5. Run Development Servers
 
 **Backend:**
 ```bash
@@ -143,30 +159,53 @@ npm run dev
 # App runs at http://localhost:3000
 ```
 
-### 5. Access Application
+### 6. Access Application
 
 Open browser: **http://localhost:3000**
 
-## 🎓 Training the ML Model
+## 🎓 How It Works (New Azure-Based Approach)
 
-### Step 1: Collect Data
-1. Run the web application
-2. Have participants complete the pronunciation test
-3. Data saved to `/data/participant_xxx/`
+### Analysis Pipeline
 
-### Step 2: Train on Google Colab
-1. Upload `/data` folder to Google Drive: `MyDrive/phoneizer/data/`
-2. Open `ml_colab/training_notebook.ipynb` in Colab
-3. Enable GPU: Runtime → Change runtime type → GPU
-4. Run all cells sequentially
-5. Download trained model: `models/trained_model.pt`
+1. **Speech Recognition** (Azure)
+   - Audio sent to Azure Speech-to-Text API
+   - Turkish language model (tr-TR)
+   - Returns recognized text + confidence score
 
-### Step 3: Deploy Model
-1. Copy `trained_model.pt` to local `models/` directory
-2. Restart backend server
-3. Model will be loaded automatically
+2. **Ground-Truth Phonemes** (Phonemizer)
+   - Target word converted to IPA phonemes
+   - Uses eSpeak NG Turkish backend
+   - Produces expected pronunciation sequence
 
-**Detailed instructions:** See `ml_colab/ai_training_instructions.txt`
+3. **Acoustic Feature Extraction**
+   - MFCCs (13 coefficients)
+   - Pitch (F0) analysis
+   - Formants (F1, F2, F3) via Praat
+   - Spectral features
+   - Energy characteristics
+
+4. **Phoneme-Level Scoring**
+   - Align recognized text with target phonemes
+   - Score each phoneme based on acoustic quality
+   - Combine Azure confidence with acoustic scores
+   - Generate per-phoneme feedback
+
+5. **Overall Assessment**
+   - Weighted score: 40% Azure + 60% Acoustic
+   - Letter grade (A-F)
+   - Detailed phoneme breakdown
+
+### Migration from Old ML Training Approach
+
+The previous custom ML training workflow has been **deprecated** and moved to `/backend/deprecated/`. The new approach offers:
+
+✅ **No training required** - Use Azure's pre-trained models  
+✅ **Better accuracy** - Production-grade speech recognition  
+✅ **Phoneme-level detail** - Granular feedback per sound  
+✅ **Easier deployment** - Just configure API keys  
+✅ **Scalable** - Cloud-based processing
+
+**Old files archived in:** `/backend/deprecated/` and `/ml_colab/`
 
 ## 📊 User Flow
 
@@ -200,34 +239,45 @@ Open browser: **http://localhost:3000**
 ### Pronunciation Analysis API
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/analyze/audio` | Analyze pronunciation quality of uploaded .wav |
+| POST | `/analyze/audio` | Legacy heuristic analysis |
+| POST | `/analyze/azure` | **NEW:** Azure + Phoneme analysis |
 
-**Features:**
-- Automatic phoneme target generation
+**New Azure Endpoint Features:**
+- Azure Speech-to-Text recognition
+- Phonemizer-based ground-truth phonemes
 - Acoustic feature extraction (MFCC, pitch, formants)
-- **ML-based scoring** (0-100) or heuristic fallback
-- Per-phoneme detailed feedback
+- Per-phoneme alignment and scoring
 - Overall pronunciation grade (A-F)
-- Confidence intervals (with ML)
+- Confidence scores and detailed feedback
 
-**See:** `PRONUNCIATION_ANALYSIS_GUIDE.md` for complete documentation
-
-### ML Model Training (New!)
-Train a neural network to replace heuristic scoring with learned predictions.
-
-**Quick Start:**
+**Example Request:**
 ```bash
-cd backend
-python train_ml_model.py
+curl -X POST http://localhost:8000/analyze/azure \
+  -F "file=@recording.wav" \
+  -F "word=pencere"
 ```
 
-**Features:**
-- 57 acoustic features extracted
-- Neural network (PyTorch)
-- Training on Google Colab (GPU)
-- Automatic deployment
+**Example Response:**
+```json
+{
+  "word": "pencere",
+  "recognized_text": "pencere",
+  "azure_confidence": 0.91,
+  "phonemes_target": "p e n d͡ʒ e ɾ e",
+  "segment_scores": {
+    "p": 0.96,
+    "e": 0.91,
+    "n": 0.90,
+    "d͡ʒ": 0.88,
+    "ɾ": 0.85
+  },
+  "overall": 0.88,
+  "grade": "B (İyi)",
+  "analysis_method": "azure_hybrid"
+}
+```
 
-**See:** `ML_TRAINING_GUIDE.md` for complete ML training documentation
+**See:** `PRONUNCIATION_ANALYSIS_GUIDE.md` for complete documentation
 
 ## 🎨 Features
 
@@ -264,24 +314,30 @@ const turkishWords = [
 ]
 ```
 
-### Changing Model Architecture
+### Configuring Azure Credentials
 
-Edit `ml_colab/training_notebook.ipynb`:
-```python
-model = PronunciationQualityNet(
-    input_size=37,
-    hidden_sizes=[256, 128, 64],  # Modify layers
-    dropout=0.3
-)
+Edit `backend/.env`:
+```bash
+AZURE_SPEECH_KEY=your_key_here
+AZURE_REGION=eastus  # or your region
 ```
 
 ### Custom Feature Extraction
 
 Modify `extract_acoustic_features()` in:
-- Training: `ml_colab/training_notebook.ipynb`
-- Inference: `backend/main.py`
+- `backend/inference.py` - Acoustic analysis logic
 
-**Important:** Keep feature extraction identical in both!
+### Phoneme Customization
+
+Edit `_generate_phonemes_espeak()` in `backend/inference.py`:
+```python
+phonemes = phonemize(
+    word,
+    language='tr',  # Change language
+    backend='espeak',
+    with_stress=True  # Enable stress markers
+)
+```
 
 ## 🔒 Data Privacy & KVKK Compliance
 
@@ -314,9 +370,20 @@ npm run build
 
 ## 📚 Documentation
 
-- **Training Guide:** `ml_colab/ai_training_instructions.txt`
-- **Environment Setup:** `ml_colab/training_environment_setup.txt`
-- **API Docs:** http://localhost:8000/docs (when backend running)
+Comprehensive documentation is available in the [`docs/`](docs/) folder:
+
+### Quick Links
+- 📖 **[Documentation Index](docs/README.md)** - Complete documentation guide
+- 🚀 **[Quick Start](docs/setup/QUICK_START.md)** - Get started in 5 minutes
+- ☁️ **[Azure Integration](docs/azure/AZURE_INTEGRATION_SUMMARY.md)** - Complete Azure setup
+- 🎯 **[Pronunciation Guide](docs/guides/PRONUNCIATION_ANALYSIS_GUIDE.md)** - Using the analysis API
+- 🔧 **[Setup Guide](docs/setup/SETUP_GUIDE.md)** - Detailed installation
+- 🏗️ **[Architecture](docs/architecture/SYSTEM_OVERVIEW.md)** - System design
+- 🗂️ **[Deprecated ML Training](docs/deprecated/)** - Archived ML training docs
+
+### API Documentation
+- **Interactive API Docs:** http://localhost:8000/docs (when backend running)
+- **Phoneme API:** See [Phoneme Feature Guide](docs/guides/PHONEME_FEATURE.md)
 
 ## 🤝 Contributing
 
@@ -336,10 +403,12 @@ Created by PhoneticHybrid Team for Turkish linguistics research.
 
 ## 🙏 Acknowledgments
 
-- **Phonemizer** - IPA transcription
+- **Azure Cognitive Services** - Speech recognition
+- **Phonemizer** - IPA transcription (eSpeak NG)
 - **Praat** - Phonetic analysis toolkit
 - **librosa** - Audio feature extraction
 - **Material UI** - React component library
+- **FastAPI** - Modern Python web framework
 
 ## 📞 Support
 

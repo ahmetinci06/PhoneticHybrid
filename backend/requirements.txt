@@ -1,25 +1,30 @@
 # Core API dependencies
-fastapi==0.109.0
-uvicorn[standard]==0.27.0
+fastapi>=0.111.0
+uvicorn[standard]>=0.30.0
 python-multipart==0.0.6
-pydantic==2.5.3
+pydantic>=2.7.0
+python-dotenv>=1.0.0
 
-# ML dependencies (install separately if issues occur)
-# For Python 3.13, some packages may need manual installation
-torch>=2.1.0
+# Azure Speech Services (NEW - for production pronunciation analysis)
+azure-cognitiveservices-speech>=1.31.0
+
+# Audio processing and analysis
 numpy>=1.26.0
 scipy>=1.11.0
 librosa>=0.10.0
 soundfile>=0.12.0
 audioread>=3.0.0
 
-# Phonetic analysis (may require Python 3.11 or earlier)
+# Phonetic analysis
 praat-parselmouth>=0.4.0
 phonemizer>=3.2.0
 
-# ML Training dependencies
+# ML dependencies (optional - for legacy model support)
+torch>=2.1.0
 pandas>=2.0.0
 scikit-learn>=1.3.0
+
+# Development and training utilities (optional)
 tqdm>=4.65.0
 matplotlib>=3.7.0
 seaborn>=0.12.0

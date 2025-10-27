@@ -9,6 +9,13 @@ import {
   CircularProgress,
   Card,
   CardContent,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
 } from '@mui/material'
 import MicIcon from '@mui/icons-material/Mic'
 import StopIcon from '@mui/icons-material/Stop'
@@ -88,12 +95,11 @@ export default function PronunciationTest({
 
     try {
       const formData = new FormData()
-      formData.append('participant_id', participantId)
+      formData.append('file', audioBlob, `${currentWord}.wav`)
       formData.append('word', currentWord)
-      formData.append('word_index', currentIndex.toString())
-      formData.append('audio', audioBlob, `${currentWord}.wav`)
 
-      const response = await fetch('http://localhost:8000/upload', {
+      // Use new Azure-based analysis endpoint
+      const response = await fetch('http://localhost:8000/analyze/azure', {
         method: 'POST',
         body: formData,
       })
@@ -261,14 +267,81 @@ export default function PronunciationTest({
             <Typography variant="h6" gutterBottom>
               Son Sonuç:
             </Typography>
-            <Paper sx={{ p: 2, bgcolor: 'success.light', color: 'white' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <CheckCircleIcon />
-                <Typography>
-                  {results[results.length - 1].word} -{' '}
-                  {results[results.length - 1].feedback}
+            <Paper sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <CheckCircleIcon color="success" />
+                <Typography variant="h6">
+                  {results[results.length - 1].word}
+                </Typography>
+                <Chip 
+                  label={results[results.length - 1].grade || 'N/A'} 
+                  color="primary" 
+                  size="small"
+                />
+              </Box>
+
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Tanınan Metin: <strong>{results[results.length - 1].recognized_text || 'N/A'}</strong>
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Genel Skor: <strong>{((results[results.length - 1].overall || 0) * 100).toFixed(1)}%</strong>
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Azure Güven: <strong>{((results[results.length - 1].azure_confidence || 0) * 100).toFixed(1)}%</strong>
                 </Typography>
               </Box>
+
+              {results[results.length - 1].segment_scores && 
+               Object.keys(results[results.length - 1].segment_scores).length > 0 && (
+                <>
+                  <Typography variant="subtitle2" gutterBottom sx={{ mt: 2 }}>
+                    Fonem Skorları:
+                  </Typography>
+                  <TableContainer>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Fonem</TableCell>
+                          <TableCell align="right">Skor</TableCell>
+                          <TableCell align="right">Görsel</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {Object.entries(results[results.length - 1].segment_scores).map(
+                          ([phoneme, score]: [string, any]) => (
+                            <TableRow key={phoneme}>
+                              <TableCell>{phoneme}</TableCell>
+                              <TableCell align="right">
+                                {(score * 100).toFixed(1)}%
+                              </TableCell>
+                              <TableCell align="right">
+                                <Box
+                                  sx={{
+                                    width: '100%',
+                                    height: 8,
+                                    bgcolor: 'grey.200',
+                                    borderRadius: 1,
+                                    overflow: 'hidden',
+                                  }}
+                                >
+                                  <Box
+                                    sx={{
+                                      width: `${score * 100}%`,
+                                      height: '100%',
+                                      bgcolor: score >= 0.8 ? 'success.main' : score >= 0.6 ? 'warning.main' : 'error.main',
+                                    }}
+                                  />
+                                </Box>
+                              </TableCell>
+                            </TableRow>
+                          )
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </>
+              )}
             </Paper>
           </Box>
         )}

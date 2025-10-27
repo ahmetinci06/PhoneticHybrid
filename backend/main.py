@@ -26,6 +26,7 @@ from review_api import router as review_router
 
 # Import inference module
 from inference import analyze_pronunciation as analyze_audio_phonemes
+from inference import analyze_pronunciation_azure
 import requests
 
 app = FastAPI(title="Turkish Pronunciation Analysis API")
@@ -159,10 +160,28 @@ async def upload_audio(
     words_dir = participant_dir / "kelimeler"
     words_dir.mkdir(exist_ok=True)
     
-    # Save audio file
-    audio_path = words_dir / f"{word_index:02d}_{word}.wav"
-    with open(audio_path, "wb") as buffer:
-        shutil.copyfileobj(audio.file, buffer)
+    # Save temporary uploaded file
+    temp_dir = Path("temp_audio")
+    temp_dir.mkdir(exist_ok=True)
+    temp_path = temp_dir / f"temp_{uuid.uuid4()}.webm"
+    
+    try:
+        # Save uploaded file
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(audio.file, buffer)
+        
+        # Convert to proper WAV format using librosa
+        audio_path = words_dir / f"{word_index:02d}_{word}.wav"
+        y, sr = librosa.load(str(temp_path), sr=16000)
+        
+        # Save as proper WAV file
+        import soundfile as sf
+        sf.write(str(audio_path), y, sr, subtype='PCM_16')
+        
+    finally:
+        # Clean up temp file
+        if temp_path.exists():
+            temp_path.unlink()
     
     # Analyze if model is available
     result = None
@@ -369,11 +388,107 @@ async def serve_audio(participant_id: str, filename: str):
     )
 
 
+@app.post("/analyze/azure")
+async def analyze_azure_endpoint(
+    file: UploadFile = File(...),
+    word: str = Form(...)
+):
+    """
+    Analyze pronunciation using Azure Speech Services + Phoneme Analysis.
+    
+    This is the NEW production endpoint that combines:
+    - Azure Cognitive Services Speech-to-Text
+    - Phonemizer for ground-truth phoneme sequences
+    - Acoustic feature analysis for detailed scoring
+    
+    Args:
+        file: .wav audio file (UploadFile)
+        word: Target word being pronounced
+        
+    Returns:
+        JSON with comprehensive analysis results including:
+        - recognized_text: What Azure recognized
+        - azure_confidence: Azure's confidence score
+        - phonemes_target: Expected phoneme sequence
+        - segment_scores: Per-phoneme pronunciation scores
+        - overall: Combined overall score
+        
+    Example:
+        curl -X POST http://localhost:8000/analyze/azure \
+          -F "file=@pencere.wav" \
+          -F "word=pencere"
+    """
+    try:
+        # Validate file format
+        if not file.filename.endswith('.wav'):
+            raise HTTPException(
+                status_code=400,
+                detail="Only .wav files are supported"
+            )
+        
+        # Save uploaded file temporarily
+        temp_dir = Path("temp_audio")
+        temp_dir.mkdir(exist_ok=True)
+        
+        temp_file_path = temp_dir / f"{uuid.uuid4()}.wav"
+        
+        with open(temp_file_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+        
+        # Analyze pronunciation using Azure hybrid approach
+        result = analyze_pronunciation_azure(
+            audio_path=str(temp_file_path),
+            word=word
+        )
+        
+        # Clean up temporary file
+        try:
+            temp_file_path.unlink()
+        except:
+            pass
+        
+        return result
+        
+    except ImportError as e:
+        logger.error(f"Missing dependency: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Server configuration error: {str(e)}"
+        )
+    except ValueError as e:
+        logger.error(f"Configuration error: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Azure Speech Services not configured: {str(e)}"
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Azure analysis failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Audio analysis failed: {str(e)}"
+        )
+
+
 @app.get("/health")
 async def health_check():
+    """
+    Health check endpoint with Azure configuration status.
+    """
+    # Check Azure configuration
+    azure_configured = False
+    try:
+        from azure_config import validate_azure_config
+        azure_configured = validate_azure_config()
+    except:
+        pass
+    
     return {
         "status": "healthy",
         "model_loaded": model is not None,
+        "azure_configured": azure_configured,
         "data_dir": str(DATA_DIR),
         "participants": len(list(DATA_DIR.glob("participant_*")))
     }
