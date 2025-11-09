@@ -233,8 +233,8 @@ export default function PhonemePreview() {
             >
               <Typography
                 variant="h4"
+                className="ipa-text"
                 sx={{
-                  fontFamily: '"Segoe UI", "Noto Sans", "DejaVu Sans", "Arial Unicode MS", sans-serif',
                   textAlign: 'center',
                   color: 'primary.main',
                   fontWeight: 600,
@@ -289,13 +289,15 @@ export default function PhonemePreview() {
                 {analysis.phoneme_list.map((phoneme, index) => (
                   <Chip
                     key={index}
-                    label={phoneme}
+                    label={<span className="ipa-text">{phoneme}</span>}
                     sx={{
-                      fontFamily: '"Segoe UI", "Noto Sans", "DejaVu Sans", sans-serif',
                       fontSize: '1.2rem',
                       bgcolor: 'secondary.light',
                       color: 'white',
                       padding: '8px',
+                      '& .MuiChip-label': {
+                        fontSize: '1.2rem',
+                      },
                     }}
                   />
                 ))}
@@ -330,8 +332,8 @@ export default function PhonemePreview() {
               </Typography>
               <Typography
                 variant="h5"
+                className="ipa-text"
                 sx={{
-                  fontFamily: '"Segoe UI", "Noto Sans", "DejaVu Sans", sans-serif',
                   bgcolor: 'grey.900',
                   color: 'white',
                   p: 2,

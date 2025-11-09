@@ -87,6 +87,9 @@ export default function PronunciationTest({
       const formData = new FormData()
       formData.append('file', audioBlob, `${currentWord}.wav`)
       formData.append('word', currentWord)
+      // Add participant info for saving audio to their folder
+      formData.append('participant_id', participantId)
+      formData.append('word_index', currentIndex.toString())
 
       // Use Whisper-based analysis endpoint
       const response = await fetch('http://localhost:8000/analyze', {

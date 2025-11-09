@@ -446,6 +446,34 @@ def analyze_pronunciation_whisper(audio_path: str, word: str) -> Dict:
         analyzer = PronunciationAnalyzer()
         features = analyzer.extract_acoustic_features(audio_path)
 
+        # Step 3.5: Validate audio quality and word matching
+        validation_passed, validation_score, validation_message = _validate_pronunciation_attempt(
+            features=features,
+            recognized_text=recognized_text,
+            target_word=word
+        )
+
+        if not validation_passed:
+            # Return low score with validation message
+            logger.warning(f"Validation failed: {validation_message}")
+            return {
+                "word": word,
+                "recognized_text": recognized_text,
+                "recognition_confidence": round(whisper_confidence, 3),
+                "phonemes_target": target_phonemes,
+                "segment_scores": {},
+                "overall": round(validation_score, 3),
+                "grade": "F (Zayıf)",
+                "features": {
+                    "duration": features['duration'],
+                    "pitch_mean": features['pitch_mean'],
+                    "formants": features['formants'],
+                },
+                "analysis_method": "whisper_hybrid",
+                "phoneme_count": 0,
+                "validation_error": validation_message
+            }
+
         # Step 4: Compute phoneme-wise alignment and scoring
         segment_scores = _compute_phoneme_alignment_scores(
             audio_path=audio_path,
@@ -456,8 +484,10 @@ def analyze_pronunciation_whisper(audio_path: str, word: str) -> Dict:
 
         # Step 5: Calculate overall score
         # Combine Whisper confidence with acoustic-based scores
+        # Factor in validation score to penalize mismatches
         acoustic_score = np.mean(list(segment_scores.values())) if segment_scores else 0.7
-        overall_score = 0.4 * whisper_confidence + 0.6 * acoustic_score
+        base_score = 0.3 * whisper_confidence + 0.5 * acoustic_score + 0.2 * validation_score
+        overall_score = base_score
 
         # Assign grade
         if overall_score >= 0.9:
@@ -500,6 +530,73 @@ def analyze_pronunciation_whisper(audio_path: str, word: str) -> Dict:
     except Exception as e:
         logger.error(f"Whisper analysis failed: {e}")
         raise Exception(f"Pronunciation analysis failed: {str(e)}")
+
+
+def _validate_pronunciation_attempt(
+    features: Dict,
+    recognized_text: str,
+    target_word: str
+) -> Tuple[bool, float, str]:
+    """
+    Validate if the pronunciation attempt is valid for scoring.
+
+    Checks:
+    1. Audio contains sufficient speech energy
+    2. Recognized text reasonably matches target word
+    3. Audio duration is appropriate
+
+    Args:
+        features: Acoustic features extracted from audio
+        recognized_text: Text recognized by Whisper
+        target_word: Expected word
+
+    Returns:
+        Tuple of (passed: bool, score: float, message: str)
+    """
+    # Validation 1: Check if audio contains speech (energy check)
+    energy = features.get('energy_mean', 0)
+    if energy < 0.001:  # Very low energy threshold
+        return False, 0.0, "Ses seviyesi çok düşük - konuşma algılanamadı (No speech detected - audio too quiet)"
+
+    # Validation 2: Check duration is reasonable (0.3s to 5s)
+    duration = features.get('duration', 0)
+    if duration < 0.3:
+        return False, 0.1, "Ses kaydı çok kısa (Audio too short)"
+    if duration > 5.0:
+        return False, 0.2, "Ses kaydı çok uzun (Audio too long)"
+
+    # Validation 3: Check word matching
+    if not recognized_text or len(recognized_text.strip()) == 0:
+        return False, 0.0, "Konuşma tanınamadı (Speech not recognized)"
+
+    # Calculate similarity between recognized and target
+    target_lower = target_word.lower().strip()
+    recognized_lower = recognized_text.lower().strip()
+
+    # Exact match - perfect
+    if target_lower == recognized_lower:
+        return True, 1.0, "Perfect match"
+
+    # Check if one contains the other
+    if target_lower in recognized_lower or recognized_lower in target_lower:
+        return True, 0.9, "Partial match"
+
+    # Character-level similarity using Levenshtein-like distance
+    max_len = max(len(target_lower), len(recognized_lower))
+    if max_len == 0:
+        return False, 0.0, "Empty word detected"
+
+    # Count common characters
+    common = sum(1 for c in target_lower if c in recognized_lower)
+    similarity = common / max_len
+
+    # Threshold: require at least 40% character overlap
+    if similarity < 0.4:
+        return False, 0.3, f"Kelime uyuşmuyor: '{recognized_text}' != '{target_word}' (Word mismatch: recognized '{recognized_text}' instead of '{target_word}')"
+
+    # Validation passed with reduced score for partial match
+    validation_score = 0.5 + 0.5 * similarity
+    return True, validation_score, f"Partial word match (similarity: {similarity:.0%})"
 
 
 def _recognize_speech_whisper(audio_path: str, target_word: str = "") -> Tuple[str, float]:
@@ -602,37 +699,45 @@ def _generate_phonemes_espeak(word: str, language: str = "tr") -> str:
     """
     try:
         from phonemizer import phonemize
-        from phonemizer.backend import EspeakBackend
         import platform
+        import os
 
-        # Configure eSpeak-NG executable path for different platforms
-        if platform.system() == 'Windows':
-            espeak_path = r"C:\Program Files\eSpeak NG\espeak-ng.exe"
-        else:
-            # macOS/Linux - use espeak-ng from PATH
-            espeak_path = "espeak-ng"
+        # Configure eSpeak-NG library path for phonemizer
+        # This is critical for macOS/Linux where phonemizer needs the library path
+        if platform.system() == 'Darwin':  # macOS
+            # Set library path for Homebrew-installed espeak-ng
+            espeak_lib = '/opt/homebrew/opt/espeak-ng/lib/libespeak-ng.dylib'
+            if os.path.exists(espeak_lib):
+                os.environ['PHONEMIZER_ESPEAK_LIBRARY'] = espeak_lib
+            else:
+                # Try alternate location (Intel Mac)
+                espeak_lib = '/usr/local/opt/espeak-ng/lib/libespeak-ng.dylib'
+                if os.path.exists(espeak_lib):
+                    os.environ['PHONEMIZER_ESPEAK_LIBRARY'] = espeak_lib
+        elif platform.system() == 'Linux':
+            # Linux typically has espeak-ng in standard library paths
+            # But we can set it explicitly if needed
+            possible_paths = [
+                '/usr/lib/x86_64-linux-gnu/libespeak-ng.so',
+                '/usr/lib/libespeak-ng.so',
+                '/usr/local/lib/libespeak-ng.so'
+            ]
+            for lib_path in possible_paths:
+                if os.path.exists(lib_path):
+                    os.environ['PHONEMIZER_ESPEAK_LIBRARY'] = lib_path
+                    break
 
-        # Use eSpeak backend with explicit executable path
-        backend = EspeakBackend(
-            language,
-            preserve_punctuation=False,
-            language_switch='remove-flags',
-            with_stress=False
-        )
-
-        # Override the executable name to use espeak-ng
-        backend._espeak_exe = espeak_path
-
+        # Use phonemize with string backend name (NOT a backend object)
         phonemes = phonemize(
             word,
             language=language,
-            backend=backend,
+            backend='espeak',  # String backend name, not object
             strip=True,
             preserve_punctuation=False,
             with_stress=False
         )
 
-        # Clean up the output
+        # Clean up the output - phonemizer returns space-separated phonemes
         phonemes = phonemes.strip()
 
         logger.info(f"Phonemizer output for '{word}': {phonemes}")

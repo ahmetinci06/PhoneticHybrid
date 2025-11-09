@@ -215,7 +215,9 @@ async def serve_audio(participant_id: str, filename: str):
 @app.post("/analyze")
 async def analyze_endpoint(
     file: UploadFile = File(...),
-    word: str = Form(...)
+    word: str = Form(...),
+    participant_id: Optional[str] = Form(None),
+    word_index: Optional[int] = Form(None)
 ):
     """
     Analyze pronunciation using Whisper (OpenAI) + Phoneme Analysis.
@@ -228,6 +230,8 @@ async def analyze_endpoint(
     Args:
         file: .wav audio file (UploadFile)
         word: Target word being pronounced
+        participant_id: Optional participant ID for saving audio to their folder
+        word_index: Optional word index for organizing saved files
 
     Returns:
         JSON with comprehensive analysis results including:
@@ -240,7 +244,9 @@ async def analyze_endpoint(
     Example:
         curl -X POST http://localhost:8000/analyze \
           -F "file=@pencere.wav" \
-          -F "word=pencere"
+          -F "word=pencere" \
+          -F "participant_id=participant_xxx" \
+          -F "word_index=5"
     """
     try:
         # Validate file format
@@ -250,7 +256,29 @@ async def analyze_endpoint(
                 detail="Only .wav files are supported"
             )
 
-        # Save uploaded file temporarily
+        # Determine save location based on whether participant_id is provided
+        save_permanently = participant_id is not None
+
+        if save_permanently:
+            # Save to participant's folder
+            participant_dir = DATA_DIR / f"participant_{participant_id}"
+            if not participant_dir.exists():
+                raise HTTPException(status_code=404, detail="Participant not found")
+
+            words_dir = participant_dir / "kelimeler"
+            words_dir.mkdir(exist_ok=True)
+
+            # Determine filename
+            if word_index is not None:
+                permanent_filename = f"{word_index:02d}_{word}.wav"
+            else:
+                permanent_filename = f"{word}.wav"
+
+            permanent_audio_path = words_dir / permanent_filename
+        else:
+            permanent_audio_path = None
+
+        # Save uploaded file temporarily for processing
         temp_dir = Path("temp_audio")
         temp_dir.mkdir(exist_ok=True)
 
@@ -266,9 +294,23 @@ async def analyze_endpoint(
         # This ensures compatibility with Whisper, Praat, and librosa
         try:
             import soundfile as sf
-            y, sr = librosa.load(str(raw_temp_path), sr=16000)
+            import warnings
+
+            # Suppress the PySoundFile warning since we handle the fallback
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="PySoundFile failed")
+                warnings.filterwarnings("ignore", category=FutureWarning, module="librosa")
+                y, sr = librosa.load(str(raw_temp_path), sr=16000)
+
             sf.write(str(final_temp_path), y, 16000, subtype='PCM_16')
             logger.info(f"Audio converted to proper WAV format: {final_temp_path}")
+
+            # If we need to save permanently, copy the converted file
+            if permanent_audio_path:
+                import shutil
+                shutil.copy2(str(final_temp_path), str(permanent_audio_path))
+                logger.info(f"Audio saved permanently to: {permanent_audio_path}")
+
         except Exception as e:
             logger.error(f"Audio conversion failed: {e}")
             # If conversion fails, try using the raw file
@@ -279,6 +321,13 @@ async def analyze_endpoint(
             audio_path=str(final_temp_path),
             word=word
         )
+
+        # Save analysis result if participant info provided
+        if permanent_audio_path and word_index is not None:
+            result_path = permanent_audio_path.parent / f"{word_index:02d}_{word}_result.json"
+            with open(result_path, "w", encoding="utf-8") as f:
+                json.dump(result, f, ensure_ascii=False, indent=2)
+            logger.info(f"Analysis result saved to: {result_path}")
 
         # Clean up temporary files
         try:

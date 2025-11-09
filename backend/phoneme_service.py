@@ -22,17 +22,41 @@ router = APIRouter(prefix="/phoneme", tags=["phoneme"])
 phonemizer_available = False
 espeak_exe_path = None
 
-# Initialize eSpeak-NG for Windows
+# Initialize eSpeak-NG and set library path for phonemizer
 try:
+    # Set eSpeak-NG library path for phonemizer
+    if platform.system() == 'Darwin':  # macOS
+        espeak_lib = '/opt/homebrew/opt/espeak-ng/lib/libespeak-ng.dylib'
+        if os.path.exists(espeak_lib):
+            os.environ['PHONEMIZER_ESPEAK_LIBRARY'] = espeak_lib
+            logger.info(f"✓ Set PHONEMIZER_ESPEAK_LIBRARY to: {espeak_lib}")
+        else:
+            # Try Intel Mac location
+            espeak_lib = '/usr/local/opt/espeak-ng/lib/libespeak-ng.dylib'
+            if os.path.exists(espeak_lib):
+                os.environ['PHONEMIZER_ESPEAK_LIBRARY'] = espeak_lib
+                logger.info(f"✓ Set PHONEMIZER_ESPEAK_LIBRARY to: {espeak_lib}")
+    elif platform.system() == 'Linux':
+        possible_paths = [
+            '/usr/lib/x86_64-linux-gnu/libespeak-ng.so',
+            '/usr/lib/libespeak-ng.so',
+            '/usr/local/lib/libespeak-ng.so'
+        ]
+        for lib_path in possible_paths:
+            if os.path.exists(lib_path):
+                os.environ['PHONEMIZER_ESPEAK_LIBRARY'] = lib_path
+                logger.info(f"✓ Set PHONEMIZER_ESPEAK_LIBRARY to: {lib_path}")
+                break
+
     if platform.system() == 'Windows':
         # Find eSpeak-NG executable
         espeak_dir = r"C:\Program Files\eSpeak NG"
         espeak_exe = os.path.join(espeak_dir, "espeak-ng.exe")
-        
+
         if os.path.exists(espeak_exe):
             espeak_exe_path = espeak_exe
             logger.info(f"✓ Found eSpeak-NG at: {espeak_exe}")
-            
+
             # Test if it works
             result = subprocess.run(
                 [espeak_exe, "--version"],
@@ -59,7 +83,7 @@ try:
             phonemizer_available = True
             espeak_exe_path = "espeak-ng"
             logger.info("✓ eSpeak-NG is available")
-            
+
 except Exception as e:
     logger.warning(f"⚠ Could not initialize eSpeak-NG: {e}")
     logger.warning("⚠ Phoneme service will not be available.")

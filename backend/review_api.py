@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/review", tags=["review"])
 
-DATA_DIR = Path("../data")
+# Use absolute path relative to this file's location (same as main.py)
+BASE_DIR = Path(__file__).parent.parent
+DATA_DIR = BASE_DIR / "data"
 
 
 class LabelData(BaseModel):
