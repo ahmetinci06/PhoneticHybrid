@@ -231,10 +231,10 @@ const ReviewPage: React.FC = () => {
       </Typography>
       <Typography variant="body1" color="text.secondary" paragraph>
         Review participant recordings, listen to pronunciations, and optionally add manual quality assessments.
-        Recordings are automatically analyzed using Azure Speech Services.
+        Recordings are automatically analyzed using Whisper speech recognition.
       </Typography>
       <Alert severity="info" sx={{ mb: 3 }}>
-        <strong>Azure Analysis Active:</strong> All recordings are automatically analyzed using Azure Speech Services + Phoneme Analysis.
+        <strong>Automatic Analysis Active:</strong> All recordings are automatically analyzed using Whisper (OpenAI) + Phoneme Analysis.
         Manual labeling is optional and can be used for quality assurance or research purposes.
       </Alert>
 

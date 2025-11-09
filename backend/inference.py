@@ -19,6 +19,26 @@ import os
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Load Whisper model once at module level (one-time initialization)
+# This prevents reloading the model on each function call, improving performance
+_whisper_model = None
+
+def _get_whisper_model():
+    """Lazy load Whisper model on first use."""
+    global _whisper_model
+    if _whisper_model is None:
+        try:
+            import whisper
+            logger.info("Loading Whisper model (base) - this may take a minute on first run...")
+            _whisper_model = whisper.load_model("base")
+            logger.info("Whisper model loaded successfully")
+        except ImportError:
+            raise ImportError("openai-whisper not installed. Install with: pip install openai-whisper")
+        except Exception as e:
+            logger.error(f"Failed to load Whisper model: {e}")
+            raise
+    return _whisper_model
+
 
 class PronunciationAnalyzer:
     """
@@ -494,15 +514,9 @@ def _recognize_speech_whisper(audio_path: str, target_word: str = "") -> Tuple[s
         Tuple of (recognized_text, confidence_score)
     """
     try:
-        import whisper
-    except ImportError:
-        raise ImportError("openai-whisper not installed. Install with: pip install openai-whisper")
+        # Get the Whisper model (loads on first call, cached thereafter)
+        model = _get_whisper_model()
 
-# Load Whisper model once at module level (using 'base' for balance of speed and accuracy)
-# Options: tiny, base, small, medium, large
-model = whisper.load_model("base")
-
-    try:
         # Transcribe audio with Turkish language
         result = model.transcribe(
             audio_path,

@@ -65,7 +65,7 @@ export default function Welcome({ onNext }: WelcomeProps) {
           sx={{ mb: 4 }}
         >
           Bu araştırma, Türkçe telaffuz kalitesini değerlendirmek için
-          geliştirilmiş yapay zeka tabanlı bir platformdur. Lütfen 30 kelimeyi
+          geliştirilmiş yapay zeka tabanlı bir platformdur. Lütfen 40 kelimeyi
           sesli olarak okuyunuz.
         </Typography>
         

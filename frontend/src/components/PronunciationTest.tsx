@@ -20,22 +20,12 @@ import {
 import MicIcon from '@mui/icons-material/Mic'
 import StopIcon from '@mui/icons-material/Stop'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
+import { turkishWords } from '../config/words'
 
 interface PronunciationTestProps {
   participantId: string
   onComplete: () => void
 }
-
-const turkishWords = [
-  'estetik', 'teşhis', 'maloklüzyon', 'braket', 'çapraşıklık',
-  'temporomandibular', 'gömük diş', 'asimetri', 'aparey', 'şeffaf braket',
-  'florür', 'sefalometri', 'sefalometri', 'ortognatik', 'kapanış',
-  'fonksiyonel', 'diastema', 'distalizasyon', 'profil', 'frenoktomi',
-  'oklüzyon', 'mandibula', 'maksilla', 'overjet', 'pekiştirme',
-  'iskeletsel', 'ortodonti', 'röntgen', 'genişletme', 'çene travması',
-  'kondil', 'dişlenme', 'ankiloz', 'mini vida', 'diş teli', 'zigoma',
-  'splint', 'retainer', 'şeffaf plak', 'konjenital eksiklik', 'süpernümere',
-]
 
 export default function PronunciationTest({
   participantId,
@@ -288,7 +278,7 @@ export default function PronunciationTest({
                   Genel Skor: <strong>{((results[results.length - 1].overall || 0) * 100).toFixed(1)}%</strong>
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Azure Güven: <strong>{((results[results.length - 1].azure_confidence || 0) * 100).toFixed(1)}%</strong>
+                  Güven Skoru: <strong>{((results[results.length - 1].recognition_confidence || 0) * 100).toFixed(1)}%</strong>
                 </Typography>
               </Box>
 
