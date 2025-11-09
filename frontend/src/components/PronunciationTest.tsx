@@ -301,7 +301,11 @@ export default function PronunciationTest({
                         {Object.entries(results[results.length - 1].segment_scores).map(
                           ([phoneme, score]: [string, any]) => (
                             <TableRow key={phoneme}>
-                              <TableCell>{phoneme}</TableCell>
+                              <TableCell>
+                                <span className="ipa-text" style={{ fontSize: '1.1rem' }}>
+                                  {phoneme}
+                                </span>
+                              </TableCell>
                               <TableCell align="right">
                                 {(score * 100).toFixed(1)}%
                               </TableCell>

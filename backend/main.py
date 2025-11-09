@@ -254,21 +254,38 @@ async def analyze_endpoint(
         temp_dir = Path("temp_audio")
         temp_dir.mkdir(exist_ok=True)
 
-        temp_file_path = temp_dir / f"{uuid.uuid4()}.wav"
+        # Save raw upload first
+        raw_temp_path = temp_dir / f"{uuid.uuid4()}_raw.wav"
+        final_temp_path = temp_dir / f"{uuid.uuid4()}.wav"
 
-        with open(temp_file_path, "wb") as f:
+        with open(raw_temp_path, "wb") as f:
             content = await file.read()
             f.write(content)
 
+        # Convert to proper WAV format (16-bit PCM, 16kHz)
+        # This ensures compatibility with Whisper, Praat, and librosa
+        try:
+            import soundfile as sf
+            y, sr = librosa.load(str(raw_temp_path), sr=16000)
+            sf.write(str(final_temp_path), y, 16000, subtype='PCM_16')
+            logger.info(f"Audio converted to proper WAV format: {final_temp_path}")
+        except Exception as e:
+            logger.error(f"Audio conversion failed: {e}")
+            # If conversion fails, try using the raw file
+            final_temp_path = raw_temp_path
+
         # Analyze pronunciation using Whisper hybrid approach
         result = analyze_pronunciation_whisper(
-            audio_path=str(temp_file_path),
+            audio_path=str(final_temp_path),
             word=word
         )
 
-        # Clean up temporary file
+        # Clean up temporary files
         try:
-            temp_file_path.unlink()
+            if raw_temp_path.exists():
+                raw_temp_path.unlink()
+            if final_temp_path.exists() and final_temp_path != raw_temp_path:
+                final_temp_path.unlink()
         except:
             pass
 

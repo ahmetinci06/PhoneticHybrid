@@ -505,6 +505,7 @@ def analyze_pronunciation_whisper(audio_path: str, word: str) -> Dict:
 def _recognize_speech_whisper(audio_path: str, target_word: str = "") -> Tuple[str, float]:
     """
     Recognize speech using OpenAI Whisper (open-source, local).
+    Uses multi-language fallback for better handling of Latin/English medical terms.
 
     Args:
         audio_path: Path to audio file
@@ -517,34 +518,68 @@ def _recognize_speech_whisper(audio_path: str, target_word: str = "") -> Tuple[s
         # Get the Whisper model (loads on first call, cached thereafter)
         model = _get_whisper_model()
 
-        # Transcribe audio with Turkish language
-        result = model.transcribe(
+        # Detect if target word is likely Latin/English (contains non-Turkish letters or patterns)
+        is_likely_latin = False
+        if target_word:
+            latin_indicators = ['x', 'q', 'w', 'mandibula', 'maxilla', 'temporomandibular']
+            target_lower = target_word.lower()
+            is_likely_latin = any(ind in target_lower for ind in latin_indicators)
+
+        # Strategy 1: Try with Turkish language (default for Turkish pronunciation tests)
+        initial_prompt = f"Pronunciation test word: {target_word}" if target_word else ""
+
+        result_tr = model.transcribe(
             audio_path,
             language="tr",  # Turkish
             task="transcribe",
-            fp16=False  # CPU compatibility
+            fp16=False,  # CPU compatibility
+            initial_prompt=initial_prompt  # Help guide recognition
         )
 
-        recognized_text = result["text"].strip().lower()
-
-        # Heuristic confidence estimation:
-        # Whisper does not provide a direct confidence score. The value below is based on
-        # string matching and does not represent actual model certainty.
-        # For more accurate confidence, consider implementing a metric based on alignment or probability outputs.
+        recognized_text = result_tr["text"].strip().lower()
         confidence = 0.85  # Default for successful recognition
 
-        # Adjust confidence based on text match with target word
+        # If target word provided, try improving recognition
         if target_word and recognized_text:
-            # Simple word matching
             target_lower = target_word.lower().strip()
-            if target_lower in recognized_text or recognized_text in target_lower:
-                confidence = 0.90  # High confidence for match
-            elif len(recognized_text) > 0:
-                # Partial match based on character overlap
-                overlap = sum(1 for c in target_lower if c in recognized_text)
-                confidence = 0.7 + 0.2 * (overlap / max(len(target_lower), 1))
+
+            # Check exact match
+            if target_lower == recognized_text:
+                confidence = 0.95
+            # Check if words are contained in each other
+            elif target_lower in recognized_text or recognized_text in target_lower:
+                confidence = 0.90
+            # Check character-level similarity (Levenshtein-like)
             else:
-                confidence = 0.5
+                # Calculate character overlap
+                common_chars = sum(1 for c in target_lower if c in recognized_text)
+                max_len = max(len(target_lower), len(recognized_text))
+                char_similarity = common_chars / max_len if max_len > 0 else 0
+
+                # If similarity is low and word might be Latin, try without language constraint
+                if char_similarity < 0.5 and (is_likely_latin or len(recognized_text) <= 3):
+                    logger.info(f"Low similarity ({char_similarity:.2f}), trying multilingual detection...")
+
+                    result_multi = model.transcribe(
+                        audio_path,
+                        task="transcribe",
+                        fp16=False,
+                        initial_prompt=initial_prompt
+                    )
+
+                    recognized_multi = result_multi["text"].strip().lower()
+
+                    # Calculate similarity for multilingual attempt
+                    common_chars_multi = sum(1 for c in target_lower if c in recognized_multi)
+                    multi_similarity = common_chars_multi / max_len if max_len > 0 else 0
+
+                    # Use whichever has better similarity
+                    if multi_similarity > char_similarity:
+                        logger.info(f"Multilingual recognition better: '{recognized_multi}' (similarity: {multi_similarity:.2f})")
+                        recognized_text = recognized_multi
+                        char_similarity = multi_similarity
+
+                confidence = 0.5 + 0.4 * char_similarity
 
         logger.info(f"Whisper recognized: '{recognized_text}' (confidence: {confidence:.2f})")
         return recognized_text, confidence
@@ -557,35 +592,52 @@ def _recognize_speech_whisper(audio_path: str, target_word: str = "") -> Tuple[s
 def _generate_phonemes_espeak(word: str, language: str = "tr") -> str:
     """
     Generate phoneme sequence using Phonemizer (eSpeak NG backend).
-    
+
     Args:
         word: Target word
         language: Language code (default: Turkish)
-        
+
     Returns:
         Space-separated IPA phoneme string
     """
     try:
         from phonemizer import phonemize
         from phonemizer.backend import EspeakBackend
-        
-        # Use eSpeak backend for Turkish
-        backend = EspeakBackend(language, preserve_punctuation=False)
+        import platform
+
+        # Configure eSpeak-NG executable path for different platforms
+        if platform.system() == 'Windows':
+            espeak_path = r"C:\Program Files\eSpeak NG\espeak-ng.exe"
+        else:
+            # macOS/Linux - use espeak-ng from PATH
+            espeak_path = "espeak-ng"
+
+        # Use eSpeak backend with explicit executable path
+        backend = EspeakBackend(
+            language,
+            preserve_punctuation=False,
+            language_switch='remove-flags',
+            with_stress=False
+        )
+
+        # Override the executable name to use espeak-ng
+        backend._espeak_exe = espeak_path
+
         phonemes = phonemize(
             word,
             language=language,
-            backend='espeak',
+            backend=backend,
             strip=True,
             preserve_punctuation=False,
             with_stress=False
         )
-        
+
         # Clean up the output
         phonemes = phonemes.strip()
-        
+
         logger.info(f"Phonemizer output for '{word}': {phonemes}")
         return phonemes
-        
+
     except Exception as e:
         logger.error(f"Phoneme generation failed: {e}")
         # Fallback to simple character split
