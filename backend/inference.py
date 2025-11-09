@@ -513,8 +513,10 @@ def _recognize_speech_whisper(audio_path: str, target_word: str = "") -> Tuple[s
 
         recognized_text = result["text"].strip().lower()
 
-        # Calculate confidence based on word matching and Whisper's internal metrics
-        # Whisper doesn't provide direct confidence, so we estimate it
+        # Heuristic confidence estimation:
+        # Whisper does not provide a direct confidence score. The value below is based on
+        # string matching and does not represent actual model certainty.
+        # For more accurate confidence, consider implementing a metric based on alignment or probability outputs.
         confidence = 0.85  # Default for successful recognition
 
         # Adjust confidence based on text match with target word
