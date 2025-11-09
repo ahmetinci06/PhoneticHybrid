@@ -300,7 +300,7 @@ async def health_check():
     try:
         import whisper
         whisper_available = True
-    except:
+    except Exception:
         pass
 
     return {
