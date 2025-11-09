@@ -2,8 +2,8 @@
 Pronunciation Analysis and Inference Module
 Analyzes recorded audio and compares with target phoneme sequences
 
-This module now includes Azure Speech Services integration for
-production-ready pronunciation analysis.
+This module uses Whisper (OpenAI open-source) for speech recognition
+combined with phoneme analysis for production-ready pronunciation evaluation.
 """
 
 import librosa
@@ -275,8 +275,8 @@ class PronunciationAnalyzer:
 
 def analyze_pronunciation(audio_path: str, word: str, target_phonemes: str) -> Dict:
     """
-    DEPRECATED: Use analyze_pronunciation_azure() instead for production.
-    
+    DEPRECATED: Use analyze_pronunciation_whisper() instead for production.
+
     Legacy function for heuristic-based pronunciation analysis.
     Kept for backward compatibility and phoneme extraction testing.
     
@@ -310,8 +310,8 @@ def analyze_pronunciation(audio_path: str, word: str, target_phonemes: str) -> D
     # Extract acoustic features
     features = analyzer.extract_acoustic_features(audio_path)
     
-    # Use heuristic scoring (deprecated - use Azure API for production)
-    logger.info("Using legacy heuristic scoring. Consider using analyze_pronunciation_azure() for production.")
+    # Use heuristic scoring (deprecated - use Whisper API for production)
+    logger.info("Using legacy heuristic scoring. Consider using analyze_pronunciation_whisper() for production.")
     scoring_method = "heuristic_legacy"
     phoneme_scores = analyzer.compare_phonemes(target_phonemes, features)
     overall_score = analyzer.calculate_overall_score(phoneme_scores)
@@ -375,76 +375,70 @@ def batch_analyze(audio_files: List[Tuple[str, str, str]]) -> List[Dict]:
     return results
 
 
-def analyze_pronunciation_azure(audio_path: str, word: str) -> Dict:
+def analyze_pronunciation_whisper(audio_path: str, word: str) -> Dict:
     """
-    Analyze pronunciation using Azure Speech Services combined with phoneme alignment.
-    
-    This is the new production approach that combines:
-    1. Azure Cognitive Services Speech-to-Text for recognition
+    Analyze pronunciation using Whisper (OpenAI open-source) combined with phoneme alignment.
+
+    This production approach combines:
+    1. Whisper speech-to-text for recognition (local, no API calls)
     2. Phonemizer (eSpeak NG) for ground-truth phoneme sequences
     3. Acoustic feature extraction (librosa, Praat) for detailed scoring
-    4. DTW-based phoneme alignment for segment-level scores
-    
+    4. Phoneme alignment for segment-level scores
+
     Args:
         audio_path: Path to recorded .wav audio file
         word: Target word being pronounced
-        
+
     Returns:
         Dictionary with comprehensive analysis results:
         {
             "word": str,
             "recognized_text": str,
-            "azure_confidence": float,
+            "recognition_confidence": float,
             "phonemes_target": str,
             "segment_scores": dict,  # Phoneme -> score mapping
             "overall": float,
             "features": dict,
-            "analysis_method": "azure_hybrid"
+            "analysis_method": "whisper_hybrid"
         }
-        
+
     Raises:
         ImportError: If required packages not installed
-        ValueError: If Azure credentials not configured
         Exception: If analysis fails
     """
     try:
         # Import required modules
-        from azure_config import get_azure_config
         from phonemizer import phonemize
         from scipy.spatial.distance import euclidean
         from scipy.signal import resample
-        
-        logger.info(f"Starting Azure-based analysis for word='{word}', audio='{audio_path}'")
-        
-        # Step 1: Validate Azure configuration
-        azure_config = get_azure_config()
-        azure_config.validate()
-        
-        # Step 2: Send audio to Azure Speech API
-        recognized_text, azure_confidence = _recognize_speech_azure(audio_path, azure_config)
-        logger.info(f"Azure recognition: '{recognized_text}' (confidence: {azure_confidence:.2f})")
-        
-        # Step 3: Generate target phoneme sequence using Phonemizer
+
+        logger.info(f"Starting Whisper-based analysis for word='{word}', audio='{audio_path}'")
+
+        # Step 1: Recognize speech using Whisper
+        recognized_text, whisper_confidence = _recognize_speech_whisper(audio_path, word)
+        logger.info(f"Whisper recognition: '{recognized_text}' (confidence: {whisper_confidence:.2f})")
+
+        # Step 2: Generate target phoneme sequence using Phonemizer
         target_phonemes = _generate_phonemes_espeak(word)
         logger.info(f"Target phonemes: {target_phonemes}")
-        
-        # Step 4: Extract acoustic features
+
+        # Step 3: Extract acoustic features
         analyzer = PronunciationAnalyzer()
         features = analyzer.extract_acoustic_features(audio_path)
-        
-        # Step 5: Compute phoneme-wise alignment and scoring
+
+        # Step 4: Compute phoneme-wise alignment and scoring
         segment_scores = _compute_phoneme_alignment_scores(
             audio_path=audio_path,
             target_phonemes=target_phonemes,
             features=features,
             recognized_text=recognized_text
         )
-        
-        # Step 6: Calculate overall score
-        # Combine Azure confidence with acoustic-based scores
+
+        # Step 5: Calculate overall score
+        # Combine Whisper confidence with acoustic-based scores
         acoustic_score = np.mean(list(segment_scores.values())) if segment_scores else 0.7
-        overall_score = 0.4 * azure_confidence + 0.6 * acoustic_score
-        
+        overall_score = 0.4 * whisper_confidence + 0.6 * acoustic_score
+
         # Assign grade
         if overall_score >= 0.9:
             grade = "A (Mükemmel)"
@@ -456,11 +450,11 @@ def analyze_pronunciation_azure(audio_path: str, word: str) -> Dict:
             grade = "D (Geliştirilebilir)"
         else:
             grade = "F (Zayıf)"
-        
+
         result = {
             "word": word,
             "recognized_text": recognized_text,
-            "azure_confidence": round(azure_confidence, 3),
+            "recognition_confidence": round(whisper_confidence, 3),
             "phonemes_target": target_phonemes,
             "segment_scores": {k: round(v, 3) for k, v in segment_scores.items()},
             "overall": round(overall_score, 3),
@@ -470,86 +464,77 @@ def analyze_pronunciation_azure(audio_path: str, word: str) -> Dict:
                 "pitch_mean": features['pitch_mean'],
                 "formants": features['formants'],
             },
-            "analysis_method": "azure_hybrid",
+            "analysis_method": "whisper_hybrid",
             "phoneme_count": len(segment_scores)
         }
-        
+
         logger.info(f"Analysis complete: overall={overall_score:.3f}, grade={grade}")
         return result
-        
+
     except ImportError as e:
         logger.error(f"Missing required package: {e}")
         raise ImportError(
             f"Required package not installed: {e}. "
-            "Install with: pip install azure-cognitiveservices-speech phonemizer scipy"
+            "Install with: pip install openai-whisper phonemizer scipy"
         )
-    except ValueError as e:
-        logger.error(f"Configuration error: {e}")
-        raise
     except Exception as e:
-        logger.error(f"Azure analysis failed: {e}")
+        logger.error(f"Whisper analysis failed: {e}")
         raise Exception(f"Pronunciation analysis failed: {str(e)}")
 
 
-def _recognize_speech_azure(audio_path: str, azure_config) -> Tuple[str, float]:
+def _recognize_speech_whisper(audio_path: str, target_word: str = "") -> Tuple[str, float]:
     """
-    Recognize speech using Azure Cognitive Services.
-    
+    Recognize speech using OpenAI Whisper (open-source, local).
+
     Args:
         audio_path: Path to audio file
-        azure_config: Azure configuration object
-        
+        target_word: Optional target word for confidence calculation
+
     Returns:
         Tuple of (recognized_text, confidence_score)
     """
     try:
-        import azure.cognitiveservices.speech as speechsdk
+        import whisper
     except ImportError:
-        raise ImportError("azure-cognitiveservices-speech not installed")
-    
-    # Create speech config
-    speech_config = speechsdk.SpeechConfig(
-        subscription=azure_config.get_speech_key(),
-        region=azure_config.get_region()
-    )
-    speech_config.speech_recognition_language = "tr-TR"
-    
-    # Create audio config from file
-    audio_config = speechsdk.AudioConfig(filename=audio_path)
-    
-    # Create recognizer
-    speech_recognizer = speechsdk.SpeechRecognizer(
-        speech_config=speech_config,
-        audio_config=audio_config
-    )
-    
-    # Perform recognition
-    result = speech_recognizer.recognize_once()
-    
-    if result.reason == speechsdk.ResultReason.RecognizedSpeech:
-        # Azure returns confidence as part of detailed results
-        # For simplified version, we use a heuristic based on result quality
-        recognized_text = result.text.strip().lower()
-        
-        # Confidence estimation (Azure doesn't always provide direct confidence)
-        # We'll use a heuristic: exact match = high, partial = medium
-        confidence = 0.85  # Default confidence for successful recognition
-        
+        raise ImportError("openai-whisper not installed. Install with: pip install openai-whisper")
+
+    try:
+        # Load Whisper model (using 'base' for balance of speed and accuracy)
+        # Options: tiny, base, small, medium, large
+        model = whisper.load_model("base")
+
+        # Transcribe audio with Turkish language
+        result = model.transcribe(
+            audio_path,
+            language="tr",  # Turkish
+            task="transcribe",
+            fp16=False  # CPU compatibility
+        )
+
+        recognized_text = result["text"].strip().lower()
+
+        # Calculate confidence based on word matching and Whisper's internal metrics
+        # Whisper doesn't provide direct confidence, so we estimate it
+        confidence = 0.85  # Default for successful recognition
+
+        # Adjust confidence based on text match with target word
+        if target_word and recognized_text:
+            # Simple word matching
+            target_lower = target_word.lower().strip()
+            if target_lower in recognized_text or recognized_text in target_lower:
+                confidence = 0.90  # High confidence for match
+            elif len(recognized_text) > 0:
+                # Partial match based on character overlap
+                overlap = sum(1 for c in target_lower if c in recognized_text)
+                confidence = 0.7 + 0.2 * (overlap / max(len(target_lower), 1))
+            else:
+                confidence = 0.5
+
+        logger.info(f"Whisper recognized: '{recognized_text}' (confidence: {confidence:.2f})")
         return recognized_text, confidence
-        
-    elif result.reason == speechsdk.ResultReason.NoMatch:
-        logger.warning("Azure: No speech recognized")
-        return "", 0.0
-        
-    elif result.reason == speechsdk.ResultReason.Canceled:
-        cancellation = result.cancellation_details
-        logger.error(f"Azure recognition canceled: {cancellation.reason}")
-        if cancellation.reason == speechsdk.CancellationReason.Error:
-            logger.error(f"Error details: {cancellation.error_details}")
-        return "", 0.0
-        
-    else:
-        logger.warning(f"Unexpected Azure result: {result.reason}")
+
+    except Exception as e:
+        logger.error(f"Whisper recognition failed: {e}")
         return "", 0.0
 
 
@@ -609,7 +594,7 @@ def _compute_phoneme_alignment_scores(
         audio_path: Path to audio file
         target_phonemes: Target phoneme sequence (space-separated)
         features: Extracted acoustic features
-        recognized_text: Text recognized by Azure
+        recognized_text: Text recognized by speech recognition
         
     Returns:
         Dictionary mapping each phoneme to a score (0-1)
