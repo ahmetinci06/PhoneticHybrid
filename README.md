@@ -1,35 +1,41 @@
 # PhoneticHybrid 🎙️
 
-A production-ready Turkish pronunciation analysis platform using **Azure Speech Services** + **Phonemizer** for academic phoneme-level pronunciation assessment.
+A production-ready Turkish pronunciation analysis platform using **Whisper (OpenAI)** + **Phonemizer** for academic phoneme-level pronunciation assessment.
 
 ## 🎯 Overview
 
 PhoneticHybrid is a full-stack web platform where participants:
 1. Record Turkish words
-2. Audio is analyzed using Azure Cognitive Services Speech-to-Text
+2. Audio is analyzed using Whisper speech recognition (local, open-source)
 3. Receive detailed phoneme-level pronunciation feedback
 4. Get actionable insights based on acoustic features
 
 **Perfect for:** Linguistic research, speech therapy, language learning applications, pronunciation assessment
 
+**Key Features:**
+- ✅ **Zero API costs** - Runs completely locally
+- 🔒 **Privacy-first** - Audio never leaves your machine
+- 🌐 **Open-source** - No API keys or credentials needed
+- 🇹🇷 **Excellent Turkish support** - Pre-trained multilingual model
+
 ## 🏗️ Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│              NEW AZURE-BASED ARCHITECTURE                     │
-├──────────────────────────────────────────────────────────────┤
-│                                                                │
-│  ┌──────────────┐      ┌──────────────┐      ┌────────────┐ │
-│  │   Frontend   │─────▶│   Backend    │─────▶│   Azure    │ │
-│  │ React + MUI  │◀─────│   FastAPI    │◀─────│  Speech AI │ │
-│  └──────────────┘      └──────────────┘      └────────────┘ │
-│                               │                                │
-│                               ├─────▶ Phonemizer (eSpeak NG)  │
-│                               ├─────▶ Acoustic Analysis       │
-│                               │       (librosa, Praat)        │
-│                               └─────▶ Phoneme Alignment       │
-│                                                                │
-└──────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────┐
+│              WHISPER-BASED ARCHITECTURE (LOCAL)                │
+├────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  ┌──────────────┐      ┌──────────────┐      ┌──────────────┐ │
+│  │   Frontend   │─────▶│   Backend    │─────▶│   Whisper    │ │
+│  │ React + MUI  │◀─────│   FastAPI    │◀─────│  (Local AI)  │ │
+│  └──────────────┘      └──────────────┘      └──────────────┘ │
+│                               │                                  │
+│                               ├─────▶ Phonemizer (eSpeak NG)    │
+│                               ├─────▶ Acoustic Analysis         │
+│                               │       (librosa, Praat)          │
+│                               └─────▶ Phoneme Alignment         │
+│                                                                  │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ### Tech Stack
@@ -42,14 +48,14 @@ PhoneticHybrid is a full-stack web platform where participants:
 
 **Backend:**
 - FastAPI (Python 3.10+)
-- Azure Cognitive Services Speech SDK
+- Whisper (OpenAI open-source speech recognition)
 - Phonemizer (eSpeak NG backend)
 - librosa (audio processing)
 - praat-parselmouth (phonetic analysis)
 - scipy (phoneme alignment)
 
 **Analysis Pipeline:**
-- Azure Speech-to-Text (tr-TR)
+- Whisper Speech-to-Text (local, multilingual)
 - Ground-truth phoneme generation (Phonemizer)
 - Acoustic feature extraction (MFCCs, formants, F0)
 - Phoneme-level alignment and scoring
@@ -101,76 +107,69 @@ phoneizer/
 
 - **Node.js** 18+ and npm
 - **Python** 3.10+
-- **Google Account** (for Colab training)
+- **eSpeak-NG** (for phoneme generation)
 
-### 1. Clone Repository
+### Automated Setup (Recommended)
 
+Choose your operating system and run the setup script:
+
+**macOS:**
 ```bash
-cd phoneizer
+./scripts/setup/setup-macos.sh
 ```
 
-### 2. Setup Backend
-
+**Linux:**
 ```bash
-cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+./scripts/setup/setup-linux.sh
 ```
 
-### 3. Configure Azure Speech Services
+**Windows:**
+```cmd
+scripts\setup\setup-windows.bat
+```
 
-1. Create an Azure account: https://portal.azure.com
-2. Create a **Speech** resource
-3. Copy your **Key** and **Region**
-4. Create `.env` file in `/backend`:
+The setup script will:
+- ✅ Verify prerequisites (Python, Node.js, eSpeak-NG)
+- ✅ Install eSpeak-NG if missing (macOS/Linux)
+- ✅ Create Python virtual environment
+- ✅ Install all Python dependencies
+- ✅ Install all Node.js dependencies
+- ✅ Create configuration files
 
+### Start Development Servers
+
+**macOS:**
 ```bash
-cp .env.example .env
+./scripts/start/start-macos.sh
 ```
 
-5. Edit `.env` and add your credentials:
-
-```
-AZURE_SPEECH_KEY=your_actual_key_here
-AZURE_REGION=your_region_here
-```
-
-### 4. Setup Frontend
-
+**Linux:**
 ```bash
-cd frontend
-npm install
+./scripts/start/start-linux.sh
 ```
 
-### 5. Run Development Servers
-
-**Backend:**
-```bash
-cd backend
-python main.py
-# Server runs at http://localhost:8000
+**Windows:**
+```cmd
+scripts\start\start-windows.bat
 ```
 
-**Frontend:**
-```bash
-cd frontend
-npm run dev
-# App runs at http://localhost:3000
-```
+### Access Application
 
-### 6. Access Application
+- **Frontend:** http://localhost:5173 (or http://localhost:3000)
+- **Backend:** http://localhost:8000
+- **API Docs:** http://localhost:8000/docs
 
-Open browser: **http://localhost:3000**
+**Note:** On first run, Whisper will download a ~150MB model (takes 1-2 minutes)
 
-## 🎓 How It Works (New Azure-Based Approach)
+## 🎓 How It Works (Whisper-Based Approach)
 
 ### Analysis Pipeline
 
-1. **Speech Recognition** (Azure)
-   - Audio sent to Azure Speech-to-Text API
-   - Turkish language model (tr-TR)
+1. **Speech Recognition** (Whisper)
+   - Audio processed locally by Whisper AI
+   - Multilingual model with excellent Turkish support
    - Returns recognized text + confidence score
+   - **Privacy-first:** Audio never leaves your machine
 
 2. **Ground-Truth Phonemes** (Phonemizer)
    - Target word converted to IPA phonemes
@@ -187,25 +186,26 @@ Open browser: **http://localhost:3000**
 4. **Phoneme-Level Scoring**
    - Align recognized text with target phonemes
    - Score each phoneme based on acoustic quality
-   - Combine Azure confidence with acoustic scores
+   - Combine Whisper confidence with acoustic scores
    - Generate per-phoneme feedback
 
 5. **Overall Assessment**
-   - Weighted score: 40% Azure + 60% Acoustic
+   - Weighted score: 40% Recognition + 60% Acoustic
    - Letter grade (A-F)
    - Detailed phoneme breakdown
 
-### Migration from Old ML Training Approach
+### Migration from Old Approaches
 
-The previous custom ML training workflow has been **deprecated** and moved to `/backend/deprecated/`. The new approach offers:
+The previous custom ML training workflow and Azure integration have been **deprecated** and moved to `/backend/deprecated/` and `/docs/deprecated/`. The new Whisper-based approach offers:
 
-✅ **No training required** - Use Azure's pre-trained models  
-✅ **Better accuracy** - Production-grade speech recognition  
-✅ **Phoneme-level detail** - Granular feedback per sound  
-✅ **Easier deployment** - Just configure API keys  
-✅ **Scalable** - Cloud-based processing
+✅ **No training required** - Use Whisper's pre-trained models
+✅ **Zero API costs** - Runs completely locally
+✅ **Better privacy** - Audio never leaves your machine
+✅ **No credentials needed** - No API keys to configure
+✅ **Excellent accuracy** - Production-grade speech recognition
+✅ **Easy deployment** - Just install and run
 
-**Old files archived in:** `/backend/deprecated/` and `/ml_colab/`
+**Old files archived in:** `/backend/deprecated/`, `/docs/deprecated/`, and `/ml_colab/`
 
 ## 📊 User Flow
 
@@ -239,11 +239,11 @@ The previous custom ML training workflow has been **deprecated** and moved to `/
 ### Pronunciation Analysis API
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/analyze/audio` | Legacy heuristic analysis |
-| POST | `/analyze/azure` | **NEW:** Azure + Phoneme analysis |
+| POST | `/analyze/audio` | Legacy heuristic analysis (deprecated) |
+| POST | `/analyze` | **Production:** Whisper + Phoneme analysis |
 
-**New Azure Endpoint Features:**
-- Azure Speech-to-Text recognition
+**Production Endpoint Features:**
+- Whisper Speech-to-Text recognition (local)
 - Phonemizer-based ground-truth phonemes
 - Acoustic feature extraction (MFCC, pitch, formants)
 - Per-phoneme alignment and scoring
@@ -252,7 +252,7 @@ The previous custom ML training workflow has been **deprecated** and moved to `/
 
 **Example Request:**
 ```bash
-curl -X POST http://localhost:8000/analyze/azure \
+curl -X POST http://localhost:8000/analyze \
   -F "file=@recording.wav" \
   -F "word=pencere"
 ```
@@ -262,7 +262,7 @@ curl -X POST http://localhost:8000/analyze/azure \
 {
   "word": "pencere",
   "recognized_text": "pencere",
-  "azure_confidence": 0.91,
+  "recognition_confidence": 0.91,
   "phonemes_target": "p e n d͡ʒ e ɾ e",
   "segment_scores": {
     "p": 0.96,
@@ -273,20 +273,21 @@ curl -X POST http://localhost:8000/analyze/azure \
   },
   "overall": 0.88,
   "grade": "B (İyi)",
-  "analysis_method": "azure_hybrid"
+  "analysis_method": "whisper_hybrid"
 }
 ```
 
-**See:** `PRONUNCIATION_ANALYSIS_GUIDE.md` for complete documentation
+**See:** `docs/guides/PRONUNCIATION_ANALYSIS_GUIDE.md` for complete documentation
 
 ## 🎨 Features
 
-✅ **Modern UI** - Material UI components with beautiful design  
-✅ **Audio Recording** - Browser MediaRecorder API  
-✅ **Real-time Feedback** - Instant pronunciation analysis  
-✅ **Phoneme Visualization** - IPA phoneme generation with eSpeak-NG  
-✅ **Data Privacy** - KVKK compliant, encrypted storage  
-✅ **GPU Training** - Fast model training on Colab  
+✅ **Modern UI** - Material UI components with beautiful design
+✅ **Audio Recording** - Browser MediaRecorder API
+✅ **Real-time Feedback** - Instant pronunciation analysis
+✅ **Phoneme Visualization** - IPA phoneme generation with eSpeak-NG
+✅ **Data Privacy** - KVKK compliant, all processing local
+✅ **Zero Cost** - No API fees, runs completely offline
+✅ **Open Source** - Built with open-source tools (Whisper, Phonemizer)
 ✅ **Scalable** - Modular architecture, easy to extend  
 
 ## 🧪 Testing
@@ -312,14 +313,6 @@ Edit `frontend/src/components/PronunciationTest.tsx`:
 const turkishWords = [
   'araba', 'bahçe', // ... add more words
 ]
-```
-
-### Configuring Azure Credentials
-
-Edit `backend/.env`:
-```bash
-AZURE_SPEECH_KEY=your_key_here
-AZURE_REGION=eastus  # or your region
 ```
 
 ### Custom Feature Extraction
@@ -375,11 +368,11 @@ Comprehensive documentation is available in the [`docs/`](docs/) folder:
 ### Quick Links
 - 📖 **[Documentation Index](docs/README.md)** - Complete documentation guide
 - 🚀 **[Quick Start](docs/setup/QUICK_START.md)** - Get started in 5 minutes
-- ☁️ **[Azure Integration](docs/azure/AZURE_INTEGRATION_SUMMARY.md)** - Complete Azure setup
 - 🎯 **[Pronunciation Guide](docs/guides/PRONUNCIATION_ANALYSIS_GUIDE.md)** - Using the analysis API
+- 🔄 **[Whisper Migration](docs/MIGRATION_TO_WHISPER.md)** - Azure to Whisper migration guide
 - 🔧 **[Setup Guide](docs/setup/SETUP_GUIDE.md)** - Detailed installation
 - 🏗️ **[Architecture](docs/architecture/SYSTEM_OVERVIEW.md)** - System design
-- 🗂️ **[Deprecated ML Training](docs/deprecated/)** - Archived ML training docs
+- 🗂️ **[Deprecated](docs/deprecated/)** - Archived ML training and Azure docs
 
 ### API Documentation
 - **Interactive API Docs:** http://localhost:8000/docs (when backend running)
@@ -403,7 +396,7 @@ Created by PhoneticHybrid Team for Turkish linguistics research.
 
 ## 🙏 Acknowledgments
 
-- **Azure Cognitive Services** - Speech recognition
+- **OpenAI Whisper** - Open-source speech recognition
 - **Phonemizer** - IPA transcription (eSpeak NG)
 - **Praat** - Phonetic analysis toolkit
 - **librosa** - Audio feature extraction
@@ -414,8 +407,8 @@ Created by PhoneticHybrid Team for Turkish linguistics research.
 
 For issues and questions:
 - Open GitHub issue
-- Check documentation in `ml_colab/`
-- Review API docs at `/docs` endpoint
+- Check documentation in `docs/` folder
+- Review API docs at http://localhost:8000/docs
 
 ---
 
