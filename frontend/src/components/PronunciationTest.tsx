@@ -98,8 +98,8 @@ export default function PronunciationTest({
       formData.append('file', audioBlob, `${currentWord}.wav`)
       formData.append('word', currentWord)
 
-      // Use new Azure-based analysis endpoint
-      const response = await fetch('http://localhost:8000/analyze/azure', {
+      // Use Whisper-based analysis endpoint
+      const response = await fetch('http://localhost:8000/analyze', {
         method: 'POST',
         body: formData,
       })

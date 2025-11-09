@@ -5,8 +5,8 @@ python-multipart==0.0.6
 pydantic>=2.7.0
 python-dotenv>=1.0.0
 
-# Azure Speech Services (NEW - for production pronunciation analysis)
-azure-cognitiveservices-speech>=1.31.0
+# Speech Recognition (Whisper - open-source, local)
+openai-whisper>=20231117
 
 # Audio processing and analysis
 numpy>=1.26.0

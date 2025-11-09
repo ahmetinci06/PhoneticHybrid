@@ -24,7 +24,7 @@ from phoneme_service import router as phoneme_router
 from review_api import router as review_router
 
 # Import inference module
-from inference import analyze_pronunciation_azure
+from inference import analyze_pronunciation_whisper
 import requests
 
 app = FastAPI(title="Turkish Pronunciation Analysis API")
@@ -51,7 +51,7 @@ DATA_DIR = BASE_DIR / "data"
 # Ensure directories exist
 DATA_DIR.mkdir(exist_ok=True)
 
-print("✓ PhoneticHybrid API - Using Azure Speech Services")
+print("✓ PhoneticHybrid API - Using Whisper Speech Recognition")
 
 
 # Pydantic models
@@ -80,7 +80,7 @@ async def root():
     return {
         "service": "Turkish Pronunciation Analysis",
         "status": "running",
-        "analysis_method": "Azure Speech Services + Phoneme Analysis"
+        "analysis_method": "Whisper (OpenAI) + Phoneme Analysis"
     }
 
 
@@ -167,13 +167,13 @@ async def upload_audio(
         if temp_path.exists():
             temp_path.unlink()
     
-    # This endpoint is deprecated - recordings are now analyzed via /analyze/azure
+    # This endpoint is deprecated - recordings are now analyzed via /analyze
     # This is kept for backward compatibility with older data collection
     result = {
         "word": word,
         "score": 0.0,
         "confidence": 0.0,
-        "feedback": "Recording saved. Use /analyze/azure endpoint for analysis."
+        "feedback": "Recording saved. Use /analyze endpoint for analysis."
     }
     
     # Save analysis result
@@ -185,7 +185,7 @@ async def upload_audio(
 
 
 # Deprecated ML-based analysis functions removed
-# Use /analyze/azure endpoint for production analysis
+# Use /analyze endpoint for production analysis
 
 
 @app.get("/audio/{participant_id}/{filename}")
@@ -212,33 +212,33 @@ async def serve_audio(participant_id: str, filename: str):
     )
 
 
-@app.post("/analyze/azure")
-async def analyze_azure_endpoint(
+@app.post("/analyze")
+async def analyze_endpoint(
     file: UploadFile = File(...),
     word: str = Form(...)
 ):
     """
-    Analyze pronunciation using Azure Speech Services + Phoneme Analysis.
-    
-    This is the NEW production endpoint that combines:
-    - Azure Cognitive Services Speech-to-Text
+    Analyze pronunciation using Whisper (OpenAI) + Phoneme Analysis.
+
+    This production endpoint combines:
+    - Whisper speech-to-text (local, open-source)
     - Phonemizer for ground-truth phoneme sequences
     - Acoustic feature analysis for detailed scoring
-    
+
     Args:
         file: .wav audio file (UploadFile)
         word: Target word being pronounced
-        
+
     Returns:
         JSON with comprehensive analysis results including:
-        - recognized_text: What Azure recognized
-        - azure_confidence: Azure's confidence score
+        - recognized_text: What Whisper recognized
+        - recognition_confidence: Whisper's confidence score
         - phonemes_target: Expected phoneme sequence
         - segment_scores: Per-phoneme pronunciation scores
         - overall: Combined overall score
-        
+
     Example:
-        curl -X POST http://localhost:8000/analyze/azure \
+        curl -X POST http://localhost:8000/analyze \
           -F "file=@pencere.wav" \
           -F "word=pencere"
     """
@@ -249,47 +249,41 @@ async def analyze_azure_endpoint(
                 status_code=400,
                 detail="Only .wav files are supported"
             )
-        
+
         # Save uploaded file temporarily
         temp_dir = Path("temp_audio")
         temp_dir.mkdir(exist_ok=True)
-        
+
         temp_file_path = temp_dir / f"{uuid.uuid4()}.wav"
-        
+
         with open(temp_file_path, "wb") as f:
             content = await file.read()
             f.write(content)
-        
-        # Analyze pronunciation using Azure hybrid approach
-        result = analyze_pronunciation_azure(
+
+        # Analyze pronunciation using Whisper hybrid approach
+        result = analyze_pronunciation_whisper(
             audio_path=str(temp_file_path),
             word=word
         )
-        
+
         # Clean up temporary file
         try:
             temp_file_path.unlink()
         except:
             pass
-        
+
         return result
-        
+
     except ImportError as e:
         logger.error(f"Missing dependency: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Server configuration error: {str(e)}"
         )
-    except ValueError as e:
-        logger.error(f"Configuration error: {e}")
-        raise HTTPException(
-            status_code=503,
-            detail=f"Azure Speech Services not configured: {str(e)}"
-        )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Azure analysis failed: {e}")
+        logger.error(f"Whisper analysis failed: {e}")
         raise HTTPException(
             status_code=500,
             detail=f"Audio analysis failed: {str(e)}"
@@ -299,22 +293,22 @@ async def analyze_azure_endpoint(
 @app.get("/health")
 async def health_check():
     """
-    Health check endpoint with Azure configuration status.
+    Health check endpoint.
     """
-    # Check Azure configuration
-    azure_configured = False
+    # Check if Whisper is available
+    whisper_available = False
     try:
-        from azure_config import validate_azure_config
-        azure_configured = validate_azure_config()
-    except:
+        import whisper
+        whisper_available = True
+    except Exception:
         pass
-    
+
     return {
         "status": "healthy",
-        "azure_configured": azure_configured,
+        "whisper_available": whisper_available,
         "data_dir": str(DATA_DIR),
         "participants": len(list(DATA_DIR.glob("participant_*"))),
-        "analysis_method": "Azure Speech Services + Phoneme Analysis"
+        "analysis_method": "Whisper (OpenAI) + Phoneme Analysis"
     }
 
 
