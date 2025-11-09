@@ -498,11 +498,11 @@ def _recognize_speech_whisper(audio_path: str, target_word: str = "") -> Tuple[s
     except ImportError:
         raise ImportError("openai-whisper not installed. Install with: pip install openai-whisper")
 
-    try:
-        # Load Whisper model (using 'base' for balance of speed and accuracy)
-        # Options: tiny, base, small, medium, large
-        model = whisper.load_model("base")
+# Load Whisper model once at module level (using 'base' for balance of speed and accuracy)
+# Options: tiny, base, small, medium, large
+model = whisper.load_model("base")
 
+    try:
         # Transcribe audio with Turkish language
         result = model.transcribe(
             audio_path,
